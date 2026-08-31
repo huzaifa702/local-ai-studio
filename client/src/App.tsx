@@ -1,0 +1,93 @@
+import React, { useEffect } from 'react';
+import { useAppStore } from './store/appStore';
+import { Header } from './components/layout/Header';
+import { Sidebar } from './components/layout/Sidebar';
+import { ChatContainer } from './components/chat/ChatContainer';
+import { ModelsModal } from './components/modals/ModelsModal';
+import { MemoryModal } from './components/modals/MemoryModal';
+import { ProjectsModal } from './components/modals/ProjectsModal';
+import { VoiceModeModal } from './components/modals/VoiceModeModal';
+import { SettingsModal } from './components/modals/SettingsModal';
+import { AuthModal } from './components/modals/AuthModal';
+import { CommandPalette } from './components/modals/CommandPalette';
+
+export const App: React.FC = () => {
+  const { 
+    initApp, 
+    activeModal, 
+    setActiveModal, 
+    createNewChat, 
+    sidebarOpen, 
+    setSidebarOpen,
+    settings 
+  } = useAppStore();
+
+  useEffect(() => {
+    initApp();
+  }, [initApp]);
+
+  // Global Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+K / Cmd+K : Command Palette
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setActiveModal(activeModal === 'commandPalette' ? null : 'commandPalette');
+      }
+
+      // Ctrl+N / Cmd+N : New Chat
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        createNewChat();
+      }
+
+      // Ctrl+B or Ctrl+Shift+S : Toggle Sidebar
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        setSidebarOpen(!sidebarOpen);
+      }
+
+      // Escape : Close modals
+      if (e.key === 'Escape' && activeModal) {
+        e.preventDefault();
+        setActiveModal(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeModal, setActiveModal, createNewChat, sidebarOpen, setSidebarOpen]);
+
+  // Apply theme class to document
+  useEffect(() => {
+    if (settings.theme === 'light') {
+      document.documentElement.classList.remove('dark');
+    } else {
+      document.documentElement.classList.add('dark');
+    }
+  }, [settings.theme]);
+
+  return (
+    <div className="app-root flex h-screen w-screen bg-[#080c14] text-slate-100 overflow-hidden font-sans antialiased">
+      {/* Sidebar Navigation */}
+      <Sidebar />
+
+      {/* Main Content Area */}
+      <div className="main-content flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-[#080c14] relative">
+        <Header />
+        <ChatContainer />
+      </div>
+
+      {/* Interactive Modals */}
+      <ModelsModal />
+      <MemoryModal />
+      <ProjectsModal />
+      <VoiceModeModal />
+      <SettingsModal />
+      <AuthModal />
+      <CommandPalette />
+    </div>
+  );
+};
+
+export default App;
