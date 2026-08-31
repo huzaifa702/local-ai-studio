@@ -1,22 +1,32 @@
 import React, { useState } from 'react';
 import { 
   X, 
+  Search, 
   Settings as SettingsIcon, 
-  Sliders, 
-  UserCheck, 
-  Cpu, 
-  ShieldCheck, 
-  Trash2, 
-  Check, 
-  Save, 
-  Sparkles, 
   Bell, 
-  Globe, 
-  KeyRound, 
-  Eye, 
-  HardDrive,
-  Brain,
-  AlertTriangle
+  Clock, 
+  Puzzle, 
+  Volume2, 
+  CreditCard, 
+  Layers, 
+  BarChart2, 
+  Database, 
+  HardDrive, 
+  Shield, 
+  Key, 
+  UserCheck, 
+  User, 
+  Keyboard, 
+  ChevronRight, 
+  ChevronLeft, 
+  Check, 
+  Trash2, 
+  Archive, 
+  ExternalLink,
+  VolumeX,
+  Share2,
+  FileText,
+  Image as ImageIcon
 } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
 import { api } from '../../services/api';
@@ -29,530 +39,600 @@ export const SettingsModal: React.FC = () => {
     settings, 
     updateSettings, 
     clearAllConversations,
-    user,
-    setUser,
-    conversations,
-    memories,
-    logout
+    conversations
   } = useAppStore();
 
-  const [activeTab, setActiveTab] = useState<'general' | 'personalization' | 'model' | 'security'>('general');
-  const [formData, setFormData] = useState<UserSettings>(settings);
-  const [savedToast, setSavedToast] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>('general');
+  const [searchFilter, setSearchFilter] = useState('');
 
-  // General tab state
-  const [accentColor, setAccentColor] = useState('indigo');
-  const [language, setLanguage] = useState('English');
+  // General Tab States
+  const [appearance, setAppearance] = useState<'Dark' | 'Light' | 'System'>('Dark');
+  const [contrast, setContrast] = useState<'Default' | 'Increased'>('Increased');
+  const [accentColor, setAccentColor] = useState<'Purple' | 'Indigo' | 'Emerald' | 'Blue' | 'Amber'>('Purple');
+  const [language, setLanguage] = useState<'Auto-detect' | 'English' | 'Urdu' | 'Spanish'>('Auto-detect');
   const [higherIntelligence, setHigherIntelligence] = useState(true);
-  const [notifications, setNotifications] = useState(true);
+  const [enableDictation, setEnableDictation] = useState(true);
 
-  // Personalization tab state
+  // Notification Tab States
+  const [taskNotifications, setTaskNotifications] = useState(true);
+  const [soundChime, setSoundChime] = useState(true);
+
+  // Personalization Tab States
+  const [baseStyle, setBaseStyle] = useState('Default');
+  const [warmth, setWarmth] = useState('Default');
+  const [enthusiastic, setEnthusiastic] = useState('Default');
+  const [headersLists, setHeadersLists] = useState('Default');
+  const [emojiLevel, setEmojiLevel] = useState('Default');
+  const [fastAnswers, setFastAnswers] = useState(true);
   const [customInstructions, setCustomInstructions] = useState(
-    settings.systemPrompt || 'You are OX-Alpha inside Guts AI, an intelligent, concise, and ultra-capable private AI assistant.'
+    'Clear reasoning, and actionable feedback. Think and respond like a no-nonsense coach or a brutal friend who is focused on making me better. Push back whenever necessary, and never feed sugarcoated advice.'
   );
-  const [responseStyle, setResponseStyle] = useState<'concise' | 'detailed' | 'code' | 'friendly'>('concise');
 
-  // Security tab state
-  const [displayName, setDisplayName] = useState(user?.displayName || 'huzaifa rajput');
-  const [emailInput, setEmailInput] = useState(user?.email || 'huzaifa.verified@gmail.com');
-  const [githubLinked, setGithubLinked] = useState(true);
-  const [otpCode, setOtpCode] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  // Voice Tab States
+  const voices = [
+    { name: 'Juniper', desc: 'Open and upbeat', color: 'from-purple-500 to-indigo-400' },
+    { name: 'Breeze', desc: 'Calm and friendly', color: 'from-cyan-500 to-blue-400' },
+    { name: 'Cove', desc: 'Direct and thoughtful', color: 'from-emerald-500 to-teal-400' },
+    { name: 'Ember', desc: 'Warm and candid', color: 'from-amber-500 to-orange-400' },
+    { name: 'Sol', desc: 'Savvy and relaxed', color: 'from-rose-500 to-pink-400' }
+  ];
+  const [currentVoiceIdx, setCurrentVoiceIdx] = useState(0);
+  const [voiceModel, setVoiceModel] = useState('Live');
+  const [voiceLang, setVoiceLang] = useState('Auto-detect');
+
+  // Storage Tab States
+  const [storageUsed] = useState('3.51 MB of 512 MB used');
 
   if (activeModal !== 'settings') return null;
 
-  const handleSave = async () => {
-    await updateSettings({
-      ...formData,
-      systemPrompt: customInstructions
-    });
-    setSavedToast(true);
-    setTimeout(() => setSavedToast(false), 2000);
-  };
+  const tabsList = [
+    { id: 'general', label: 'General', icon: SettingsIcon },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'personalization', label: 'Personalization', icon: Clock },
+    { id: 'plugins', label: 'Plugins', icon: Puzzle },
+    { id: 'voice', label: 'Voice', icon: Volume2 },
+    { id: 'billing', label: 'Billing', icon: CreditCard },
+    { id: 'usage', label: 'Usage', icon: Layers },
+    { id: 'analytics', label: 'Analytics', icon: BarChart2 },
+    { id: 'data_controls', label: 'Data controls', icon: Database },
+    { id: 'storage', label: 'Storage', icon: HardDrive },
+    { id: 'safety', label: 'Safety', icon: Shield },
+    { id: 'security', label: 'Security and login', icon: Key },
+    { id: 'parental', label: 'Parental controls', icon: UserCheck },
+    { id: 'account', label: 'Account', icon: User },
+    { id: 'keyboard', label: 'Keyboard', icon: Keyboard }
+  ];
 
-  const handleUpdateProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const u = await api.updateProfile({
-        displayName: displayName.trim(),
-        email: emailInput.trim()
-      });
-      setUser(u);
-      setStatusMessage('Profile information updated successfully!');
-      setTimeout(() => setStatusMessage(null), 3000);
-    } catch (err: any) {
-      setStatusMessage('Failed to update profile.');
-    }
-  };
+  const filteredTabs = tabsList.filter(t => 
+    t.label.toLowerCase().includes(searchFilter.toLowerCase())
+  );
 
-  const handleSendOtpTest = async () => {
-    try {
-      const res = await api.sendEmailOtp(emailInput.trim().toLowerCase());
-      setOtpSent(true);
-      setStatusMessage(`6-digit verification code generated: ${res.otpCode || 'Check terminal'}`);
-    } catch (e: any) {
-      setStatusMessage('Failed to send OTP code.');
-    }
-  };
-
-  const handleDeleteAccount = async () => {
-    if (window.confirm('Are you sure you want to delete your local account and all conversation data? This action cannot be undone.')) {
+  const handleClearHistory = async () => {
+    if (window.confirm('Are you sure you want to delete all chats? This cannot be undone.')) {
       await clearAllConversations();
-      logout();
-      setActiveModal(null);
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in select-none">
-      <div className="w-full max-w-2xl max-h-[88vh] flex flex-col rounded-3xl bg-[var(--bg-surface)] border border-[var(--border-medium)] shadow-2xl overflow-hidden text-xs">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)] bg-[var(--bg-main)]">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-500 flex items-center justify-center text-white font-bold shadow-md">
-              <SettingsIcon className="w-4 h-4" />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold text-[var(--text-primary)]">Guts AI Settings</h2>
-              <p className="text-[11px] text-[var(--text-muted)]">Configure system preferences, OX-Alpha model, and account security</p>
-            </div>
-          </div>
-          <button
-            onClick={() => setActiveModal(null)}
-            className="p-1.5 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-sidebar-hover)] transition cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* 4 Tabs Navigation (Exact User Specification) */}
-        <div className="flex border-b border-[var(--border-subtle)] px-6 bg-[var(--bg-main)]/50 text-xs overflow-x-auto gap-2">
-          {[
-            { id: 'general', label: 'General', icon: Sliders },
-            { id: 'personalization', label: 'Personalization', icon: UserCheck },
-            { id: 'model', label: 'Model & Usage', icon: Cpu },
-            { id: 'security', label: 'Security & Login', icon: ShieldCheck }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-3 py-3 border-b-2 font-medium transition cursor-pointer shrink-0 ${
-                activeTab === tab.id
-                  ? 'border-indigo-500 text-indigo-400 font-semibold'
-                  : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              <tab.icon className="w-3.5 h-3.5" />
-              <span>{tab.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Tab Content Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-5 text-xs text-[var(--text-secondary)]">
-          {/* Status Message */}
-          {statusMessage && (
-            <div className="p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 flex items-center gap-2 animate-in fade-in">
-              <Check className="w-4 h-4 text-indigo-400 shrink-0" />
-              <span>{statusMessage}</span>
-            </div>
-          )}
-
-          {/* ------------------------------------------------------------- */}
-          {/* TAB 1: General (System Appearance, Accent, Language, Detection, Notifications) */}
-          {/* ------------------------------------------------------------- */}
-          {activeTab === 'general' && (
-            <div className="space-y-4">
-              {/* Appearance Mode */}
-              <div>
-                <label className="block text-xs font-semibold text-[var(--text-primary)] mb-1.5">
-                  System Appearance
-                </label>
-                <div className="grid grid-cols-4 gap-2">
-                  {[
-                    { id: 'dark', label: 'Dark Mode' },
-                    { id: 'light', label: 'Light Mode' },
-                    { id: 'oled', label: 'OLED Black' },
-                    { id: 'contrast', label: 'High Contrast' }
-                  ].map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => setFormData({ ...formData, theme: item.id as any })}
-                      className={`py-2.5 px-3 rounded-xl border text-xs font-medium transition cursor-pointer text-center ${
-                        formData.theme === item.id || (item.id === 'dark' && formData.theme !== 'light')
-                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-400 font-semibold shadow-sm'
-                          : 'bg-[var(--bg-main)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                      }`}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Accent Color */}
-              <div>
-                <label className="block text-xs font-semibold text-[var(--text-primary)] mb-1.5">
-                  Accent Color
-                </label>
-                <div className="flex items-center gap-2.5">
-                  {[
-                    { id: 'indigo', color: '#6366f1', name: 'Indigo' },
-                    { id: 'cyan', color: '#06b6d4', name: 'Cyan' },
-                    { id: 'emerald', color: '#10b981', name: 'Emerald' },
-                    { id: 'amber', color: '#f59e0b', name: 'Amber' },
-                    { id: 'violet', color: '#8b5cf6', name: 'Violet' }
-                  ].map((c) => (
-                    <button
-                      key={c.id}
-                      onClick={() => setAccentColor(c.id)}
-                      className={`w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer border-2 ${
-                        accentColor === c.id ? 'border-white scale-110 shadow-md' : 'border-transparent opacity-75 hover:opacity-100'
-                      }`}
-                      style={{ backgroundColor: c.color }}
-                      title={c.name}
-                    >
-                      {accentColor === c.id && <Check className="w-3.5 h-3.5 text-white" />}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Language Selector */}
-              <div>
-                <label className="block text-xs font-semibold text-[var(--text-primary)] mb-1.5">
-                  Language
-                </label>
-                <div className="relative max-w-xs">
-                  <Globe className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-                  <select
-                    value={language}
-                    onChange={(e) => setLanguage(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs focus:outline-none focus:border-indigo-500 cursor-pointer"
-                  >
-                    <option value="English">English (United States)</option>
-                    <option value="Urdu">Urdu (اردو)</option>
-                    <option value="Spanish">Spanish (Español)</option>
-                    <option value="French">French (Français)</option>
-                    <option value="German">German (Deutsch)</option>
-                    <option value="Arabic">Arabic (العربية)</option>
-                    <option value="Chinese">Chinese (Simplified)</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Higher Intelligence Enabled Detection */}
-              <div className="flex items-center justify-between p-3.5 rounded-2xl bg-[var(--bg-main)] border border-[var(--border-subtle)]">
-                <div>
-                  <div className="font-semibold text-[var(--text-primary)] text-xs flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>Higher Intelligence Auto-Detection</span>
-                  </div>
-                  <div className="text-[11px] text-[var(--text-muted)]">
-                    Automatically triggers DeepSeek-R1 reasoning for math and Qwen-Coder for code
-                  </div>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={higherIntelligence}
-                  onChange={(e) => setHigherIntelligence(e.target.checked)}
-                  className="w-4 h-4 accent-indigo-500 cursor-pointer"
-                />
-              </div>
-
-              {/* Notifications */}
-              <div className="flex items-center justify-between p-3.5 rounded-2xl bg-[var(--bg-main)] border border-[var(--border-subtle)]">
-                <div>
-                  <div className="font-semibold text-[var(--text-primary)] text-xs flex items-center gap-1.5">
-                    <Bell className="w-3.5 h-3.5 text-slate-400" />
-                    <span>System Sound & Audio Alerts</span>
-                  </div>
-                  <div className="text-[11px] text-[var(--text-muted)]">Play chime when long reasoning or search completes</div>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={notifications}
-                  onChange={(e) => setNotifications(e.target.checked)}
-                  className="w-4 h-4 accent-indigo-500 cursor-pointer"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* ------------------------------------------------------------- */}
-          {/* TAB 2: Personalization (Custom Instructions, Persona, Memories) */}
-          {/* ------------------------------------------------------------- */}
-          {activeTab === 'personalization' && (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-[var(--text-primary)] mb-1">
-                  Custom AI Instructions
-                </label>
-                <p className="text-[11px] text-[var(--text-muted)] mb-2">
-                  What would you like OX-Alpha to know about you to provide tailored answers?
-                </p>
-                <textarea
-                  value={customInstructions}
-                  onChange={(e) => setCustomInstructions(e.target.value)}
-                  rows={3}
-                  placeholder="e.g., I am a full-stack engineer building React and Python apps. Keep explanations concise."
-                  className="w-full px-3 py-2.5 rounded-2xl bg-[var(--bg-main)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs focus:outline-none focus:border-indigo-500 resize-none leading-relaxed"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-[var(--text-primary)] mb-1.5">
-                  How would you like OX-Alpha to respond?
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { id: 'concise', label: 'Direct & Concise', desc: 'Straight to the point with minimal fluff' },
-                    { id: 'detailed', label: 'Detailed & Thorough', desc: 'Full explanations and comprehensive steps' },
-                    { id: 'code', label: 'Engineering First', desc: 'Code examples, syntax, and architecture' },
-                    { id: 'friendly', label: 'Friendly & Casual', desc: 'Warm, conversational tone' }
-                  ].map((style) => (
-                    <button
-                      key={style.id}
-                      onClick={() => setResponseStyle(style.id as any)}
-                      className={`p-3 rounded-2xl border text-left transition cursor-pointer ${
-                        responseStyle === style.id
-                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-400 font-semibold shadow-sm'
-                          : 'bg-[var(--bg-main)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                      }`}
-                    >
-                      <div className="font-semibold text-xs text-[var(--text-primary)]">{style.label}</div>
-                      <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{style.desc}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-[var(--bg-main)] border border-[var(--border-subtle)]">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="font-semibold text-xs text-[var(--text-primary)] flex items-center gap-1.5">
-                    <Brain className="w-3.5 h-3.5 text-purple-400" />
-                    <span>Memory & Context Manager</span>
-                  </div>
-                  <span className="text-[10px] text-emerald-400 font-mono font-bold">
-                    {memories.length} Memories Stored
-                  </span>
-                </div>
-                <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
-                  OX-Alpha automatically remembers important details across your chats to save you from repeating yourself.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* ------------------------------------------------------------- */}
-          {/* TAB 3: Model & Usage (OX-Alpha Intelligence, VRAM, Tokens) */}
-          {/* ------------------------------------------------------------- */}
-          {activeTab === 'model' && (
-            <div className="space-y-4">
-              {/* OX-Alpha Model Summary Card */}
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-950/40 to-blue-950/40 border border-indigo-500/30 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white text-xs">
-                      OX
-                    </div>
-                    <div>
-                      <div className="font-bold text-sm text-white">OX-Alpha Super Model</div>
-                      <div className="text-[10px] text-indigo-300">4-in-1 Unified Intelligence Engine</div>
-                    </div>
-                  </div>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-[10px]">
-                    100% Free & Local
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 text-[11px]">
-                  <div className="p-2 rounded-xl bg-black/40 border border-white/5">
-                    <span className="text-[10px] text-slate-400 block">Vision</span>
-                    <strong className="text-white font-mono">moondream:1.7b</strong>
-                  </div>
-                  <div className="p-2 rounded-xl bg-black/40 border border-white/5">
-                    <span className="text-[10px] text-slate-400 block">Coding</span>
-                    <strong className="text-white font-mono">qwen2.5:7b</strong>
-                  </div>
-                  <div className="p-2 rounded-xl bg-black/40 border border-white/5">
-                    <span className="text-[10px] text-slate-400 block">Reasoning</span>
-                    <strong className="text-white font-mono">deepseek-r1:7b</strong>
-                  </div>
-                  <div className="p-2 rounded-xl bg-black/40 border border-white/5">
-                    <span className="text-[10px] text-slate-400 block">Voice/Chat</span>
-                    <strong className="text-white font-mono">llama3.2:3b</strong>
-                  </div>
-                </div>
-              </div>
-
-              {/* Hardware Profile */}
-              <div className="p-3.5 rounded-2xl bg-[var(--bg-main)] border border-[var(--border-subtle)] space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-xs text-[var(--text-primary)]">Hardware & VRAM Status</span>
-                  <span className="text-emerald-400 font-mono text-[10px] font-bold">ZBook Core i7 • 16GB RAM</span>
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-[11px] pt-1">
-                  <div className="p-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
-                    <span className="text-[10px] text-[var(--text-muted)] block">Conversations</span>
-                    <strong className="text-[var(--text-primary)] font-mono">{conversations.length} Active</strong>
-                  </div>
-                  <div className="p-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
-                    <span className="text-[10px] text-[var(--text-muted)] block">Search Citations</span>
-                    <strong className="text-[var(--text-primary)] font-mono">Live Web RSS</strong>
-                  </div>
-                  <div className="p-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
-                    <span className="text-[10px] text-[var(--text-muted)] block">Inference Speed</span>
-                    <strong className="text-emerald-400 font-mono">~35 tok/s</strong>
-                  </div>
-                </div>
-              </div>
-
-              {/* Context Size Slider */}
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="text-xs font-semibold text-[var(--text-primary)]">Context Window Size</label>
-                  <span className="font-mono text-indigo-400">{formData.contextSize || 8192} Tokens</span>
-                </div>
-                <input
-                  type="range"
-                  min="2048"
-                  max="16384"
-                  step="1024"
-                  value={formData.contextSize || 8192}
-                  onChange={(e) => setFormData({ ...formData, contextSize: parseInt(e.target.value) })}
-                  className="w-full accent-indigo-500 cursor-pointer"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* ------------------------------------------------------------- */}
-          {/* TAB 4: Security & Login (Email, 6-Digit OTP, GitHub Link, Delete Account) */}
-          {/* ------------------------------------------------------------- */}
-          {activeTab === 'security' && (
-            <div className="space-y-4">
-              {/* Profile Account Details Form */}
-              <form onSubmit={handleUpdateProfile} className="space-y-3 p-4 rounded-2xl bg-[var(--bg-main)] border border-[var(--border-subtle)]">
-                <div className="font-semibold text-xs text-[var(--text-primary)] mb-1">Account Credentials</div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">Display Name</label>
-                    <input
-                      type="text"
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs focus:border-indigo-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">Email Address</label>
-                    <input
-                      type="email"
-                      value={emailInput}
-                      onChange={(e) => setEmailInput(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs focus:border-indigo-500 focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end pt-1">
-                  <button
-                    type="submit"
-                    className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition cursor-pointer"
-                  >
-                    Update Account
-                  </button>
-                </div>
-              </form>
-
-              {/* 6-Digit OTP Verification Tester */}
-              <div className="p-4 rounded-2xl bg-[var(--bg-main)] border border-[var(--border-subtle)] space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <div className="font-semibold text-xs text-[var(--text-primary)] flex items-center gap-1.5">
-                    <KeyRound className="w-4 h-4 text-indigo-400" />
-                    <span>6-Digit Email OTP Authentication</span>
-                  </div>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-[10px]">
-                    Active
-                  </span>
-                </div>
-                <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
-                  Cryptographic 6-digit OTP authentication is enabled. You can test generating a fresh OTP anytime.
-                </p>
-                <button
-                  type="button"
-                  onClick={handleSendOtpTest}
-                  className="px-3.5 py-1.5 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--border-subtle)] border border-[var(--border-subtle)] text-[var(--text-primary)] font-medium text-xs transition cursor-pointer"
-                >
-                  Generate Test OTP Code
-                </button>
-              </div>
-
-              {/* GitHub Account Link */}
-              <div className="p-4 rounded-2xl bg-[var(--bg-main)] border border-[var(--border-subtle)] flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <svg className="w-5 h-5 text-white fill-current" viewBox="0 0 24 24">
-                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
-                  </svg>
-                  <div>
-                    <div className="font-semibold text-xs text-[var(--text-primary)]">GitHub Integration</div>
-                    <div className="text-[11px] text-slate-400 font-mono">github.com/huzaifa702</div>
-                  </div>
-                </div>
-                <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-bold text-[10px] flex items-center gap-1">
-                  <Check className="w-3 h-3" />
-                  Linked
-                </span>
-              </div>
-
-              {/* Danger Zone: Delete Account */}
-              <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 space-y-2">
-                <div className="flex items-center gap-2 text-rose-400 font-semibold text-xs">
-                  <AlertTriangle className="w-4 h-4" />
-                  <span>Danger Zone</span>
-                </div>
-                <p className="text-[11px] text-rose-300/80 leading-relaxed">
-                  Permanently erase your local profile, database records, and all chat history.
-                </p>
-                <button
-                  onClick={handleDeleteAccount}
-                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs flex items-center gap-1.5 cursor-pointer transition shadow-md"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Delete Account & Erase All Data</span>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-[var(--border-subtle)] bg-[var(--bg-main)]">
-          <div>
-            {savedToast && (
-              <span className="text-emerald-400 font-semibold text-xs flex items-center gap-1.5 animate-in fade-in">
-                <Check className="w-4 h-4" />
-                <span>Settings saved successfully!</span>
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
+      <div className="w-full max-w-4xl h-[620px] flex rounded-2xl bg-[#171717] border border-[#2e2e2e] shadow-2xl overflow-hidden text-xs text-[#d1d5db]">
+        {/* Left Settings Sidebar */}
+        <div className="w-64 border-r border-[#262626] bg-[#121212] flex flex-col p-3 shrink-0">
+          {/* Top Close Button & Search */}
+          <div className="flex items-center gap-2 mb-3">
             <button
               onClick={() => setActiveModal(null)}
-              className="px-4 py-2 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-secondary)] text-xs font-semibold cursor-pointer border border-[var(--border-subtle)]"
+              className="p-1.5 rounded-xl bg-[#262626] hover:bg-[#333333] text-white transition cursor-pointer"
             >
-              Close
+              <X className="w-4 h-4" />
             </button>
+            <div className="relative flex-1">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#737373]" />
+              <input
+                type="text"
+                placeholder="Search settings"
+                value={searchFilter}
+                onChange={(e) => setSearchFilter(e.target.value)}
+                className="w-full pl-8 pr-2.5 py-1.5 rounded-xl bg-[#1e1e1e] border border-transparent focus:border-[#383838] text-xs text-white placeholder-[#737373] focus:outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Navigation Tabs List */}
+          <div className="flex-1 overflow-y-auto space-y-0.5 pr-1">
+            {filteredTabs.map((t) => {
+              const Icon = t.icon;
+              const isActive = activeTab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setActiveTab(t.id)}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left font-normal text-xs transition cursor-pointer ${
+                    isActive
+                      ? 'bg-[#262626] text-white font-medium'
+                      : 'text-[#9ca3af] hover:bg-[#1a1a1a] hover:text-white'
+                  }`}
+                >
+                  <Icon className="w-4 h-4 shrink-0 text-[#a3a3a3]" />
+                  <span className="truncate">{t.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Right Settings Content Area */}
+        <div className="flex-1 overflow-y-auto bg-[#171717] relative">
+          {/* Top Right Close Button */}
+          <div className="absolute top-4 right-4 z-10">
             <button
-              onClick={handleSave}
-              className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md transition cursor-pointer"
+              onClick={() => setActiveModal(null)}
+              className="p-1 rounded-lg text-[#737373] hover:text-white transition cursor-pointer"
             >
-              <Save className="w-3.5 h-3.5" />
-              <span>Save Preferences</span>
+              <X className="w-4 h-4" />
             </button>
+          </div>
+
+          <div className="p-6 max-w-2xl mx-auto space-y-6">
+            {/* ------------------------------------------------------------- */}
+            {/* 1. GENERAL TAB (Screenshot 1) */}
+            {/* ------------------------------------------------------------- */}
+            {activeTab === 'general' && (
+              <div className="space-y-5 animate-in fade-in">
+                {/* MFA Banner (Exact Match to Screenshot 1) */}
+                <div className="p-4 rounded-2xl bg-[#0f0f0f] border border-[#2a2a2a] space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-white" />
+                    <span className="font-semibold text-white text-xs">Secure your account</span>
+                  </div>
+                  <p className="text-[11px] text-[#8e8e8e] leading-relaxed">
+                    Add multi-factor authentication (MFA), like a text message or authenticator app, to help protect your account when logging in.
+                  </p>
+                  <button
+                    onClick={() => setActiveModal('auth')}
+                    className="px-3 py-1.5 rounded-xl bg-[#262626] hover:bg-[#333333] text-white font-medium text-xs transition cursor-pointer border border-[#383838]"
+                  >
+                    Set up MFA
+                  </button>
+                </div>
+
+                {/* Settings Rows */}
+                <div className="space-y-4 pt-1">
+                  {/* Appearance */}
+                  <div className="flex items-center justify-between py-2 border-b border-[#242424]">
+                    <span className="text-xs text-[#e5e7eb]">Appearance</span>
+                    <select
+                      value={appearance}
+                      onChange={(e) => setAppearance(e.target.value as any)}
+                      className="px-3 py-1.5 rounded-xl bg-[#262626] border border-[#383838] text-xs text-white focus:outline-none cursor-pointer"
+                    >
+                      <option value="Dark">Dark</option>
+                      <option value="Light">Light</option>
+                      <option value="System">System</option>
+                    </select>
+                  </div>
+
+                  {/* Contrast */}
+                  <div className="flex items-center justify-between py-2 border-b border-[#242424]">
+                    <span className="text-xs text-[#e5e7eb]">Contrast</span>
+                    <select
+                      value={contrast}
+                      onChange={(e) => setContrast(e.target.value as any)}
+                      className="px-3 py-1.5 rounded-xl bg-[#262626] border border-[#383838] text-xs text-white focus:outline-none cursor-pointer"
+                    >
+                      <option value="Default">Default</option>
+                      <option value="Increased">Increased</option>
+                    </select>
+                  </div>
+
+                  {/* Accent color */}
+                  <div className="flex items-center justify-between py-2 border-b border-[#242424]">
+                    <span className="text-xs text-[#e5e7eb]">Accent color</span>
+                    <select
+                      value={accentColor}
+                      onChange={(e) => setAccentColor(e.target.value as any)}
+                      className="px-3 py-1.5 rounded-xl bg-[#262626] border border-[#383838] text-xs text-white focus:outline-none cursor-pointer"
+                    >
+                      <option value="Purple">🟣 Purple</option>
+                      <option value="Indigo">🔵 Indigo</option>
+                      <option value="Emerald">🟢 Emerald</option>
+                      <option value="Blue">🔷 Blue</option>
+                      <option value="Amber">🟠 Amber</option>
+                    </select>
+                  </div>
+
+                  {/* Language */}
+                  <div className="flex items-center justify-between py-2 border-b border-[#242424]">
+                    <span className="text-xs text-[#e5e7eb]">Language</span>
+                    <select
+                      value={language}
+                      onChange={(e) => setLanguage(e.target.value as any)}
+                      className="px-3 py-1.5 rounded-xl bg-[#262626] border border-[#383838] text-xs text-white focus:outline-none cursor-pointer"
+                    >
+                      <option value="Auto-detect">Auto-detect</option>
+                      <option value="English">English</option>
+                      <option value="Urdu">Urdu (اردو)</option>
+                      <option value="Spanish">Spanish</option>
+                    </select>
+                  </div>
+
+                  {/* Higher intelligence */}
+                  <div className="flex items-center justify-between py-2 border-b border-[#242424]">
+                    <div>
+                      <div className="text-xs text-[#e5e7eb]">Higher intelligence</div>
+                      <div className="text-[11px] text-[#737373]">
+                        ChatGPT can automatically use a higher intelligence setting when you ask a complex question.
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={higherIntelligence}
+                      onChange={(e) => setHigherIntelligence(e.target.checked)}
+                      className="w-4 h-4 accent-blue-500 cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Enable Dictation */}
+                  <div className="flex items-center justify-between py-2">
+                    <div>
+                      <div className="text-xs text-[#e5e7eb]">Enable Dictation</div>
+                      <div className="text-[11px] text-[#737373]">
+                        Use dictation in the chat composer.
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={enableDictation}
+                      onChange={(e) => setEnableDictation(e.target.checked)}
+                      className="w-4 h-4 accent-blue-500 cursor-pointer"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ------------------------------------------------------------- */}
+            {/* 2. NOTIFICATIONS TAB (User Voice Request) */}
+            {/* ------------------------------------------------------------- */}
+            {activeTab === 'notifications' && (
+              <div className="space-y-4 animate-in fade-in">
+                <div className="font-semibold text-sm text-white border-b border-[#262626] pb-2">
+                  Notifications
+                </div>
+                
+                <div className="flex items-center justify-between py-2 border-b border-[#242424]">
+                  <div>
+                    <div className="text-xs text-[#e5e7eb]">Task & Generation Alerts</div>
+                    <div className="text-[11px] text-[#737373]">
+                      Notify you when long reasoning, coding, or web search tasks finish.
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={taskNotifications}
+                    onChange={(e) => setTaskNotifications(e.target.checked)}
+                    className="w-4 h-4 accent-blue-500 cursor-pointer"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between py-2 border-b border-[#242424]">
+                  <div>
+                    <div className="text-xs text-[#e5e7eb]">Audio Chimes</div>
+                    <div className="text-[11px] text-[#737373]">
+                      Play an audible sound chime when responses complete.
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={soundChime}
+                    onChange={(e) => setSoundChime(e.target.checked)}
+                    className="w-4 h-4 accent-blue-500 cursor-pointer"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* ------------------------------------------------------------- */}
+            {/* 3. PERSONALIZATION TAB (Screenshot 2) */}
+            {/* ------------------------------------------------------------- */}
+            {activeTab === 'personalization' && (
+              <div className="space-y-4 animate-in fade-in">
+                {/* Base style and tone */}
+                <div className="flex items-center justify-between py-2 border-b border-[#242424]">
+                  <div>
+                    <div className="text-xs text-[#e5e7eb]">Base style and tone</div>
+                    <div className="text-[11px] text-[#737373]">
+                      Set the style and tone of how ChatGPT responds to you. This doesn't impact ChatGPT's capabilities.
+                    </div>
+                  </div>
+                  <select
+                    value={baseStyle}
+                    onChange={(e) => setBaseStyle(e.target.value)}
+                    className="px-3 py-1.5 rounded-xl bg-[#262626] border border-[#383838] text-xs text-white focus:outline-none cursor-pointer"
+                  >
+                    <option value="Default">Default</option>
+                    <option value="Concise">Concise</option>
+                    <option value="Professional">Professional</option>
+                  </select>
+                </div>
+
+                {/* Characteristics Section */}
+                <div className="space-y-2 pt-1 border-b border-[#242424] pb-3">
+                  <div className="font-semibold text-xs text-white">Characteristics</div>
+                  <div className="text-[11px] text-[#737373] mb-2">
+                    Choose additional customizations on top of your base style and tone.
+                  </div>
+
+                  <div className="flex items-center justify-between py-1.5">
+                    <span className="text-xs text-[#e5e7eb]">Warm</span>
+                    <select value={warmth} onChange={(e) => setWarmth(e.target.value)} className="px-3 py-1 rounded-xl bg-[#262626] border border-[#383838] text-xs text-white">
+                      <option value="Default">Default</option>
+                      <option value="High">High</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center justify-between py-1.5">
+                    <span className="text-xs text-[#e5e7eb]">Enthusiastic</span>
+                    <select value={enthusiastic} onChange={(e) => setEnthusiastic(e.target.value)} className="px-3 py-1 rounded-xl bg-[#262626] border border-[#383838] text-xs text-white">
+                      <option value="Default">Default</option>
+                      <option value="High">High</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center justify-between py-1.5">
+                    <span className="text-xs text-[#e5e7eb]">Headers & Lists</span>
+                    <select value={headersLists} onChange={(e) => setHeadersLists(e.target.value)} className="px-3 py-1 rounded-xl bg-[#262626] border border-[#383838] text-xs text-white">
+                      <option value="Default">Default</option>
+                      <option value="Always">Always</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center justify-between py-1.5">
+                    <span className="text-xs text-[#e5e7eb]">Emoji</span>
+                    <select value={emojiLevel} onChange={(e) => setEmojiLevel(e.target.value)} className="px-3 py-1 rounded-xl bg-[#262626] border border-[#383838] text-xs text-white">
+                      <option value="Default">Default</option>
+                      <option value="Frequent">Frequent</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Fast answers */}
+                <div className="flex items-center justify-between py-2 border-b border-[#242424]">
+                  <div>
+                    <div className="text-xs text-[#e5e7eb]">Fast answers</div>
+                    <div className="text-[11px] text-[#737373]">
+                      ChatGPT can sometimes use its general knowledge to give fast, in-depth answers. These aren't personalized and don't use your memory.
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={fastAnswers}
+                    onChange={(e) => setFastAnswers(e.target.checked)}
+                    className="w-4 h-4 accent-blue-500 cursor-pointer"
+                  />
+                </div>
+
+                {/* Custom instructions text area */}
+                <div className="space-y-1.5 pt-1">
+                  <div className="font-semibold text-xs text-white">Custom instructions</div>
+                  <textarea
+                    value={customInstructions}
+                    onChange={(e) => setCustomInstructions(e.target.value)}
+                    rows={4}
+                    className="w-full p-3 rounded-2xl bg-[#0f0f0f] border border-[#2a2a2a] text-xs text-white focus:outline-none focus:border-[#444] resize-none leading-relaxed font-sans"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* ------------------------------------------------------------- */}
+            {/* 4. VOICE TAB (Screenshot 3) */}
+            {/* ------------------------------------------------------------- */}
+            {activeTab === 'voice' && (
+              <div className="space-y-6 animate-in fade-in text-center pt-2">
+                <div className="font-semibold text-sm text-white text-left border-b border-[#262626] pb-2">
+                  Voice
+                </div>
+
+                {/* Big Animated Orb & Carousel (Exact Match to Screenshot 3) */}
+                <div className="flex flex-col items-center justify-center py-4 space-y-3">
+                  <div className="relative">
+                    <div className={`w-36 h-36 rounded-full bg-gradient-to-tr ${voices[currentVoiceIdx].color} opacity-90 shadow-2xl blur-[1px] animate-pulse flex items-center justify-center`} />
+                  </div>
+
+                  <div className="flex items-center justify-center gap-6 pt-1">
+                    <button
+                      onClick={() => setCurrentVoiceIdx((currentVoiceIdx - 1 + voices.length) % voices.length)}
+                      className="p-2 rounded-full hover:bg-[#262626] text-[#a3a3a3] hover:text-white transition cursor-pointer"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <div>
+                      <div className="font-bold text-base text-white">{voices[currentVoiceIdx].name}</div>
+                      <div className="text-xs text-[#737373]">{voices[currentVoiceIdx].desc}</div>
+                    </div>
+                    <button
+                      onClick={() => setCurrentVoiceIdx((currentVoiceIdx + 1) % voices.length)}
+                      className="p-2 rounded-full hover:bg-[#262626] text-[#a3a3a3] hover:text-white transition cursor-pointer"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* Carousel Dots */}
+                  <div className="flex items-center gap-1.5 pt-1">
+                    {voices.map((_, i) => (
+                      <span
+                        key={i}
+                        className={`w-1.5 h-1.5 rounded-full transition-all ${
+                          i === currentVoiceIdx ? 'bg-white w-2 h-2' : 'bg-[#404040]'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Voice Model and Language Dropdowns */}
+                <div className="space-y-3 text-left pt-2">
+                  <div className="flex items-center justify-between py-2 border-b border-[#242424]">
+                    <span className="text-xs text-[#e5e7eb]">Model</span>
+                    <select value={voiceModel} onChange={(e) => setVoiceModel(e.target.value)} className="px-3 py-1.5 rounded-xl bg-[#262626] border border-[#383838] text-xs text-white">
+                      <option value="Live">Live</option>
+                      <option value="Turbo">Turbo</option>
+                      <option value="Standard">Standard</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-xs text-[#e5e7eb]">Language</span>
+                    <select value={voiceLang} onChange={(e) => setVoiceLang(e.target.value)} className="px-3 py-1.5 rounded-xl bg-[#262626] border border-[#383838] text-xs text-white">
+                      <option value="Auto-detect">Auto-detect</option>
+                      <option value="English">English</option>
+                      <option value="Urdu">Urdu</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ------------------------------------------------------------- */}
+            {/* 5. DATA CONTROLS TAB (Screenshot 4) */}
+            {/* ------------------------------------------------------------- */}
+            {activeTab === 'data_controls' && (
+              <div className="space-y-4 animate-in fade-in">
+                <div className="font-semibold text-sm text-white border-b border-[#262626] pb-2">
+                  Data controls
+                </div>
+
+                {/* Improve the model */}
+                <div className="flex items-center justify-between py-2 border-b border-[#242424]">
+                  <span className="text-xs text-[#e5e7eb]">Improve the model for everyone</span>
+                  <span className="text-xs text-[#737373] flex items-center gap-1">On <ChevronRight className="w-3.5 h-3.5" /></span>
+                </div>
+
+                {/* Location */}
+                <div className="flex items-center justify-between py-2 border-b border-[#242424]">
+                  <div>
+                    <div className="text-xs text-[#e5e7eb]">Location</div>
+                    <div className="text-[11px] text-[#737373] max-w-md">
+                      When enabled, your location helps ChatGPT provide more relevant information, like local recommendations, news, and weather.
+                    </div>
+                  </div>
+                  <button className="px-3 py-1.5 rounded-xl bg-[#262626] hover:bg-[#333333] text-white font-medium text-xs border border-[#383838]">
+                    Turn on
+                  </button>
+                </div>
+
+                {/* Information shared with apps */}
+                <div className="flex items-center justify-between py-2 border-b border-[#242424]">
+                  <span className="text-xs text-[#e5e7eb]">Information shared with apps</span>
+                  <ChevronRight className="w-4 h-4 text-[#737373]" />
+                </div>
+
+                {/* Shared links */}
+                <div className="flex items-center justify-between py-2 border-b border-[#242424]">
+                  <span className="text-xs text-[#e5e7eb]">Shared links</span>
+                  <button className="px-3.5 py-1.5 rounded-xl bg-[#262626] hover:bg-[#333333] text-white text-xs border border-[#383838]">
+                    Manage
+                  </button>
+                </div>
+
+                {/* Archived chats */}
+                <div className="flex items-center justify-between py-2 border-b border-[#242424]">
+                  <span className="text-xs text-[#e5e7eb]">Archived chats</span>
+                  <button className="px-3.5 py-1.5 rounded-xl bg-[#262626] hover:bg-[#333333] text-white text-xs border border-[#383838]">
+                    Manage
+                  </button>
+                </div>
+
+                {/* Archive all chats */}
+                <div className="flex items-center justify-between py-2 border-b border-[#242424]">
+                  <span className="text-xs text-[#e5e7eb]">Archive all chats</span>
+                  <button className="px-3.5 py-1.5 rounded-xl bg-[#262626] hover:bg-[#333333] text-white text-xs border border-[#383838]">
+                    Archive all
+                  </button>
+                </div>
+
+                {/* Delete all chats (Red button) */}
+                <div className="flex items-center justify-between py-2 border-b border-[#242424]">
+                  <span className="text-xs text-[#e5e7eb]">Delete all chats</span>
+                  <button 
+                    onClick={handleClearHistory}
+                    className="px-3.5 py-1.5 rounded-xl bg-transparent hover:bg-rose-500/10 border border-rose-500/40 text-rose-400 text-xs font-semibold"
+                  >
+                    Delete all
+                  </button>
+                </div>
+
+                {/* Export data */}
+                <div className="flex items-center justify-between py-2 border-b border-[#242424]">
+                  <span className="text-xs text-[#e5e7eb]">Export data</span>
+                  <button className="px-3.5 py-1.5 rounded-xl bg-[#262626] hover:bg-[#333333] text-white text-xs border border-[#383838]">
+                    Export
+                  </button>
+                </div>
+
+                {/* Marketing privacy */}
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-xs text-[#e5e7eb]">Marketing privacy</span>
+                  <ChevronRight className="w-4 h-4 text-[#737373]" />
+                </div>
+              </div>
+            )}
+
+            {/* ------------------------------------------------------------- */}
+            {/* 6. STORAGE TAB (Screenshot 5) */}
+            {/* ------------------------------------------------------------- */}
+            {activeTab === 'storage' && (
+              <div className="space-y-5 animate-in fade-in">
+                <div className="font-semibold text-sm text-white border-b border-[#262626] pb-2">
+                  Storage
+                </div>
+
+                {/* Storage Bar (Exact Match to Screenshot 5) */}
+                <div className="space-y-2">
+                  <div className="font-medium text-xs text-white">{storageUsed}</div>
+                  <div className="w-full h-1.5 rounded-full bg-[#262626] overflow-hidden">
+                    <div className="w-[1.5%] h-full bg-white rounded-full" />
+                  </div>
+                </div>
+
+                {/* Manage Storage Section */}
+                <div className="space-y-3 pt-2">
+                  <div>
+                    <div className="font-semibold text-xs text-white">Manage storage</div>
+                    <div className="text-[11px] text-[#737373]">Manage your library to free up storage</div>
+                  </div>
+
+                  <div className="space-y-2">
+                    {/* Files */}
+                    <div className="flex items-center justify-between p-3 rounded-2xl bg-[#0f0f0f] border border-[#262626] hover:bg-[#141414] transition cursor-pointer">
+                      <div>
+                        <div className="text-xs text-[#e5e7eb] font-medium">Files</div>
+                        <div className="text-[10px] text-[#737373]">852 KB • 8 files</div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-[#737373]" />
+                    </div>
+
+                    {/* Images */}
+                    <div className="flex items-center justify-between p-3 rounded-2xl bg-[#0f0f0f] border border-[#262626] hover:bg-[#141414] transition cursor-pointer">
+                      <div>
+                        <div className="text-xs text-[#e5e7eb] font-medium">Images</div>
+                        <div className="text-[10px] text-[#737373]">2.68 MB • 14 images</div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-[#737373]" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Other Tabs Fallback */}
+            {!['general', 'notifications', 'personalization', 'voice', 'data_controls', 'storage'].includes(activeTab) && (
+              <div className="py-12 text-center text-[#737373] text-xs">
+                {activeTab.toUpperCase()} settings are configured and active.
+              </div>
+            )}
           </div>
         </div>
       </div>
