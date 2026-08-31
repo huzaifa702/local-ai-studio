@@ -5,47 +5,37 @@ import {
   Settings as SettingsIcon, 
   Bell, 
   Clock, 
-  Puzzle, 
   Volume2, 
-  CreditCard, 
-  Layers, 
-  BarChart2, 
   Database, 
   HardDrive, 
-  Shield, 
-  Key, 
-  UserCheck, 
   User, 
   Keyboard, 
   ChevronRight, 
   ChevronLeft, 
-  Check, 
+  Shield, 
   Trash2, 
   Archive, 
-  ExternalLink,
-  VolumeX,
-  Share2,
-  FileText,
-  Image as ImageIcon
+  Box, 
+  Info, 
+  CornerDownLeft, 
+  Sparkles
 } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
 import { api } from '../../services/api';
-import type { UserSettings } from '../../types';
 
 export const SettingsModal: React.FC = () => {
   const { 
     activeModal, 
     setActiveModal, 
-    settings, 
-    updateSettings, 
     clearAllConversations,
-    conversations
+    user,
+    logout
   } = useAppStore();
 
   const [activeTab, setActiveTab] = useState<string>('general');
   const [searchFilter, setSearchFilter] = useState('');
 
-  // General Tab States
+  // 1. General Tab States
   const [appearance, setAppearance] = useState<'Dark' | 'Light' | 'System'>('Dark');
   const [contrast, setContrast] = useState<'Default' | 'Increased'>('Increased');
   const [accentColor, setAccentColor] = useState<'Purple' | 'Indigo' | 'Emerald' | 'Blue' | 'Amber'>('Purple');
@@ -53,11 +43,11 @@ export const SettingsModal: React.FC = () => {
   const [higherIntelligence, setHigherIntelligence] = useState(true);
   const [enableDictation, setEnableDictation] = useState(true);
 
-  // Notification Tab States
+  // 2. Notification Tab States
   const [taskNotifications, setTaskNotifications] = useState(true);
   const [soundChime, setSoundChime] = useState(true);
 
-  // Personalization Tab States
+  // 3. Personalization Tab States
   const [baseStyle, setBaseStyle] = useState('Default');
   const [warmth, setWarmth] = useState('Default');
   const [enthusiastic, setEnthusiastic] = useState('Default');
@@ -68,7 +58,7 @@ export const SettingsModal: React.FC = () => {
     'Clear reasoning, and actionable feedback. Think and respond like a no-nonsense coach or a brutal friend who is focused on making me better. Push back whenever necessary, and never feed sugarcoated advice.'
   );
 
-  // Voice Tab States
+  // 4. Voice Tab States
   const voices = [
     { name: 'Juniper', desc: 'Open and upbeat', color: 'from-purple-500 to-indigo-400' },
     { name: 'Breeze', desc: 'Calm and friendly', color: 'from-cyan-500 to-blue-400' },
@@ -80,25 +70,37 @@ export const SettingsModal: React.FC = () => {
   const [voiceModel, setVoiceModel] = useState('Live');
   const [voiceLang, setVoiceLang] = useState('Auto-detect');
 
-  // Storage Tab States
+  // 5. Storage Tab States
   const [storageUsed] = useState('3.51 MB of 512 MB used');
+
+  // 6. Keyboard Shortcut States (Exact Match to Screenshots 2 & 3)
+  const defaultShortcuts = {
+    sendMessage: true,
+    sendBackground: true,
+    enableThinking: true,
+    toggleDictation: true,
+    addPhotosFiles: true,
+    openNewChat: true,
+    showShortcuts: true,
+    search: true,
+    toggleDevMode: true,
+    toggleSidebar: true,
+    setCustomInstructions: true,
+    copyLastCodeBlock: true,
+    deleteChat: true
+  };
+  const [shortcuts, setShortcuts] = useState(defaultShortcuts);
 
   if (activeModal !== 'settings') return null;
 
+  // EXACT 8 OPTIONS AS SPECIFIED BY THE USER
   const tabsList = [
     { id: 'general', label: 'General', icon: SettingsIcon },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'personalization', label: 'Personalization', icon: Clock },
-    { id: 'plugins', label: 'Plugins', icon: Puzzle },
     { id: 'voice', label: 'Voice', icon: Volume2 },
-    { id: 'billing', label: 'Billing', icon: CreditCard },
-    { id: 'usage', label: 'Usage', icon: Layers },
-    { id: 'analytics', label: 'Analytics', icon: BarChart2 },
     { id: 'data_controls', label: 'Data controls', icon: Database },
     { id: 'storage', label: 'Storage', icon: HardDrive },
-    { id: 'safety', label: 'Safety', icon: Shield },
-    { id: 'security', label: 'Security and login', icon: Key },
-    { id: 'parental', label: 'Parental controls', icon: UserCheck },
     { id: 'account', label: 'Account', icon: User },
     { id: 'keyboard', label: 'Keyboard', icon: Keyboard }
   ];
@@ -113,10 +115,18 @@ export const SettingsModal: React.FC = () => {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    if (window.confirm('Are you sure you want to permanently delete your account and all data?')) {
+      await clearAllConversations();
+      logout();
+      setActiveModal(null);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in select-none">
       <div className="w-full max-w-4xl h-[620px] flex rounded-2xl bg-[#171717] border border-[#2e2e2e] shadow-2xl overflow-hidden text-xs text-[#d1d5db]">
-        {/* Left Settings Sidebar */}
+        {/* Left Settings Sidebar (Strictly 8 Options) */}
         <div className="w-64 border-r border-[#262626] bg-[#121212] flex flex-col p-3 shrink-0">
           {/* Top Close Button & Search */}
           <div className="flex items-center gap-2 mb-3">
@@ -138,7 +148,7 @@ export const SettingsModal: React.FC = () => {
             </div>
           </div>
 
-          {/* Navigation Tabs List */}
+          {/* Navigation Tabs List (Exact 8 Options) */}
           <div className="flex-1 overflow-y-auto space-y-0.5 pr-1">
             {filteredTabs.map((t) => {
               const Icon = t.icon;
@@ -175,11 +185,11 @@ export const SettingsModal: React.FC = () => {
 
           <div className="p-6 max-w-2xl mx-auto space-y-6">
             {/* ------------------------------------------------------------- */}
-            {/* 1. GENERAL TAB (Screenshot 1) */}
+            {/* 1. GENERAL TAB */}
             {/* ------------------------------------------------------------- */}
             {activeTab === 'general' && (
               <div className="space-y-5 animate-in fade-in">
-                {/* MFA Banner (Exact Match to Screenshot 1) */}
+                {/* MFA Banner */}
                 <div className="p-4 rounded-2xl bg-[#0f0f0f] border border-[#2a2a2a] space-y-2.5">
                   <div className="flex items-center gap-2">
                     <Shield className="w-5 h-5 text-white" />
@@ -292,7 +302,7 @@ export const SettingsModal: React.FC = () => {
             )}
 
             {/* ------------------------------------------------------------- */}
-            {/* 2. NOTIFICATIONS TAB (User Voice Request) */}
+            {/* 2. NOTIFICATIONS TAB */}
             {/* ------------------------------------------------------------- */}
             {activeTab === 'notifications' && (
               <div className="space-y-4 animate-in fade-in">
@@ -333,7 +343,7 @@ export const SettingsModal: React.FC = () => {
             )}
 
             {/* ------------------------------------------------------------- */}
-            {/* 3. PERSONALIZATION TAB (Screenshot 2) */}
+            {/* 3. PERSONALIZATION TAB */}
             {/* ------------------------------------------------------------- */}
             {activeTab === 'personalization' && (
               <div className="space-y-4 animate-in fade-in">
@@ -412,7 +422,7 @@ export const SettingsModal: React.FC = () => {
                   />
                 </div>
 
-                {/* Custom instructions text area */}
+                {/* Custom instructions */}
                 <div className="space-y-1.5 pt-1">
                   <div className="font-semibold text-xs text-white">Custom instructions</div>
                   <textarea
@@ -426,7 +436,7 @@ export const SettingsModal: React.FC = () => {
             )}
 
             {/* ------------------------------------------------------------- */}
-            {/* 4. VOICE TAB (Screenshot 3) */}
+            {/* 4. VOICE TAB */}
             {/* ------------------------------------------------------------- */}
             {activeTab === 'voice' && (
               <div className="space-y-6 animate-in fade-in text-center pt-2">
@@ -434,7 +444,7 @@ export const SettingsModal: React.FC = () => {
                   Voice
                 </div>
 
-                {/* Big Animated Orb & Carousel (Exact Match to Screenshot 3) */}
+                {/* Big Animated Orb & Carousel */}
                 <div className="flex flex-col items-center justify-center py-4 space-y-3">
                   <div className="relative">
                     <div className={`w-36 h-36 rounded-full bg-gradient-to-tr ${voices[currentVoiceIdx].color} opacity-90 shadow-2xl blur-[1px] animate-pulse flex items-center justify-center`} />
@@ -496,7 +506,7 @@ export const SettingsModal: React.FC = () => {
             )}
 
             {/* ------------------------------------------------------------- */}
-            {/* 5. DATA CONTROLS TAB (Screenshot 4) */}
+            {/* 5. DATA CONTROLS TAB */}
             {/* ------------------------------------------------------------- */}
             {activeTab === 'data_controls' && (
               <div className="space-y-4 animate-in fade-in">
@@ -571,17 +581,11 @@ export const SettingsModal: React.FC = () => {
                     Export
                   </button>
                 </div>
-
-                {/* Marketing privacy */}
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-xs text-[#e5e7eb]">Marketing privacy</span>
-                  <ChevronRight className="w-4 h-4 text-[#737373]" />
-                </div>
               </div>
             )}
 
             {/* ------------------------------------------------------------- */}
-            {/* 6. STORAGE TAB (Screenshot 5) */}
+            {/* 6. STORAGE TAB */}
             {/* ------------------------------------------------------------- */}
             {activeTab === 'storage' && (
               <div className="space-y-5 animate-in fade-in">
@@ -589,7 +593,7 @@ export const SettingsModal: React.FC = () => {
                   Storage
                 </div>
 
-                {/* Storage Bar (Exact Match to Screenshot 5) */}
+                {/* Storage Bar */}
                 <div className="space-y-2">
                   <div className="font-medium text-xs text-white">{storageUsed}</div>
                   <div className="w-full h-1.5 rounded-full bg-[#262626] overflow-hidden">
@@ -627,10 +631,324 @@ export const SettingsModal: React.FC = () => {
               </div>
             )}
 
-            {/* Other Tabs Fallback */}
-            {!['general', 'notifications', 'personalization', 'voice', 'data_controls', 'storage'].includes(activeTab) && (
-              <div className="py-12 text-center text-[#737373] text-xs">
-                {activeTab.toUpperCase()} settings are configured and active.
+            {/* ------------------------------------------------------------- */}
+            {/* 7. ACCOUNT TAB (Exact Match to Screenshot 1 of Batch 2) */}
+            {/* ------------------------------------------------------------- */}
+            {activeTab === 'account' && (
+              <div className="space-y-5 animate-in fade-in">
+                <div className="font-semibold text-sm text-white border-b border-[#262626] pb-2">
+                  Account
+                </div>
+
+                {/* Account Details Rows */}
+                <div className="space-y-3">
+                  {/* Name */}
+                  <div className="flex items-center justify-between py-2 border-b border-[#242424]">
+                    <span className="text-xs text-[#e5e7eb]">Name</span>
+                    <span className="text-xs text-[#a3a3a3] font-medium">
+                      {user?.displayName || 'huzaifa rajput'}
+                    </span>
+                  </div>
+
+                  {/* Username */}
+                  <div className="flex items-center justify-between py-2 border-b border-[#242424] cursor-pointer hover:bg-[#1f1f1f] px-1 rounded-xl transition">
+                    <span className="text-xs text-[#e5e7eb]">Username</span>
+                    <span className="text-xs text-[#a3a3a3] flex items-center gap-1">
+                      @{user?.username || 'hr1034072'} <ChevronRight className="w-3.5 h-3.5 text-[#737373]" />
+                    </span>
+                  </div>
+
+                  {/* Email */}
+                  <div className="flex items-center justify-between py-2 border-b border-[#242424] cursor-pointer hover:bg-[#1f1f1f] px-1 rounded-xl transition">
+                    <span className="text-xs text-[#e5e7eb]">Email</span>
+                    <span className="text-xs text-[#a3a3a3] flex items-center gap-1 font-mono text-[11px]">
+                      {user?.email || 'hr1034072@gmail.com'} <ChevronRight className="w-3.5 h-3.5 text-[#737373]" />
+                    </span>
+                  </div>
+
+                  {/* Delete Account */}
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-xs text-[#e5e7eb]">Delete account</span>
+                    <button
+                      onClick={handleDeleteAccount}
+                      className="px-4 py-1 rounded-xl bg-transparent hover:bg-rose-500/10 border border-rose-500/40 text-rose-400 text-xs font-semibold cursor-pointer transition"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+
+                {/* GPT Builder Profile Section (Exact Match to Screenshot) */}
+                <div className="pt-2 space-y-3 border-t border-[#262626]">
+                  <div>
+                    <div className="font-semibold text-xs text-white">GPT builder profile</div>
+                    <p className="text-[11px] text-[#737373] mt-1 leading-relaxed">
+                      Personalize your builder profile to connect with users of your GPTs. These settings apply to publicly shared GPTs.
+                    </p>
+                  </div>
+
+                  {/* Placeholder GPT Preview Card */}
+                  <div className="p-4 rounded-2xl bg-[#0f0f0f] border border-[#262626] relative flex flex-col items-center justify-center text-center space-y-2">
+                    <span className="absolute top-3 right-3 text-[10px] text-[#737373]">Preview</span>
+                    <div className="w-9 h-9 rounded-xl bg-[#262626] flex items-center justify-center text-white shadow-sm">
+                      <Box className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-xs text-white">PlaceholderGPT</div>
+                      <div className="text-[10px] text-[#737373]">By community builder 👤</div>
+                    </div>
+                  </div>
+
+                  {/* Info Box */}
+                  <div className="p-3.5 rounded-2xl bg-[#0f0f0f] border border-[#262626] flex items-start gap-2.5 text-[11px] text-[#8e8e8e]">
+                    <Info className="w-4 h-4 text-[#737373] shrink-0 mt-0.5" />
+                    <p className="leading-relaxed">
+                      Complete verification to publish GPTs to everyone. Verify your identity by adding billing details or verifying your profile.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ------------------------------------------------------------- */}
+            {/* 8. KEYBOARD TAB (Exact Match to Screenshots 2 & 3 of Batch 2) */}
+            {/* ------------------------------------------------------------- */}
+            {activeTab === 'keyboard' && (
+              <div className="space-y-5 animate-in fade-in">
+                <div>
+                  <div className="font-semibold text-sm text-white">Keyboard</div>
+                  <p className="text-[11px] text-[#737373] mt-1">
+                    To change a shortcut, select the key combination, and then type the new keys.
+                  </p>
+                </div>
+
+                {/* Composer Section */}
+                <div className="space-y-3">
+                  <div className="font-semibold text-xs text-white pb-1">Composer</div>
+
+                  {/* Send message */}
+                  <div className="flex items-center justify-between py-1.5">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={shortcuts.sendMessage}
+                        onChange={(e) => setShortcuts({ ...shortcuts, sendMessage: e.target.checked })}
+                        className="w-4 h-4 accent-blue-500 cursor-pointer"
+                      />
+                      <span className="text-xs text-[#e5e7eb]">Send message or stop answeri...</span>
+                    </div>
+                    <kbd className="px-2 py-1 rounded bg-[#262626] border border-[#383838] text-[11px] font-mono text-[#a3a3a3]">
+                      ↵
+                    </kbd>
+                  </div>
+
+                  {/* Send in background */}
+                  <div className="flex items-center justify-between py-1.5">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={shortcuts.sendBackground}
+                        onChange={(e) => setShortcuts({ ...shortcuts, sendBackground: e.target.checked })}
+                        className="w-4 h-4 accent-blue-500 cursor-pointer"
+                      />
+                      <span className="text-xs text-[#e5e7eb]">Send message in background</span>
+                    </div>
+                    <kbd className="px-2 py-1 rounded bg-[#262626] border border-[#383838] text-[11px] font-mono text-[#a3a3a3]">
+                      Ctrl + ↵
+                    </kbd>
+                  </div>
+
+                  {/* Enable thinking */}
+                  <div className="flex items-center justify-between py-1.5">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={shortcuts.enableThinking}
+                        onChange={(e) => setShortcuts({ ...shortcuts, enableThinking: e.target.checked })}
+                        className="w-4 h-4 accent-blue-500 cursor-pointer"
+                      />
+                      <span className="text-xs text-[#e5e7eb]">Enable thinking</span>
+                    </div>
+                    <kbd className="px-2 py-1 rounded bg-[#262626] border border-[#383838] text-[11px] font-mono text-[#a3a3a3]">
+                      Ctrl + Shift + M
+                    </kbd>
+                  </div>
+
+                  {/* Toggle dictation */}
+                  <div className="flex items-center justify-between py-1.5">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={shortcuts.toggleDictation}
+                        onChange={(e) => setShortcuts({ ...shortcuts, toggleDictation: e.target.checked })}
+                        className="w-4 h-4 accent-blue-500 cursor-pointer"
+                      />
+                      <span className="text-xs text-[#e5e7eb]">Toggle dictation</span>
+                    </div>
+                    <kbd className="px-2 py-1 rounded bg-[#262626] border border-[#383838] text-[11px] font-mono text-[#a3a3a3]">
+                      Ctrl + Shift + D
+                    </kbd>
+                  </div>
+
+                  {/* Add photos & files */}
+                  <div className="flex items-center justify-between py-1.5">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={shortcuts.addPhotosFiles}
+                        onChange={(e) => setShortcuts({ ...shortcuts, addPhotosFiles: e.target.checked })}
+                        className="w-4 h-4 accent-blue-500 cursor-pointer"
+                      />
+                      <span className="text-xs text-[#e5e7eb]">Add photos & files</span>
+                    </div>
+                    <kbd className="px-2 py-1 rounded bg-[#262626] border border-[#383838] text-[11px] font-mono text-[#a3a3a3]">
+                      Ctrl + U
+                    </kbd>
+                  </div>
+                </div>
+
+                {/* App Section */}
+                <div className="space-y-3 pt-2 border-t border-[#242424]">
+                  <div className="font-semibold text-xs text-white pb-1">App</div>
+
+                  {/* Open new chat */}
+                  <div className="flex items-center justify-between py-1.5">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={shortcuts.openNewChat}
+                        onChange={(e) => setShortcuts({ ...shortcuts, openNewChat: e.target.checked })}
+                        className="w-4 h-4 accent-blue-500 cursor-pointer"
+                      />
+                      <span className="text-xs text-[#e5e7eb]">Open new chat</span>
+                    </div>
+                    <kbd className="px-2 py-1 rounded bg-[#262626] border border-[#383838] text-[11px] font-mono text-[#a3a3a3]">
+                      Ctrl + Shift + O
+                    </kbd>
+                  </div>
+
+                  {/* Show shortcuts */}
+                  <div className="flex items-center justify-between py-1.5">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={shortcuts.showShortcuts}
+                        onChange={(e) => setShortcuts({ ...shortcuts, showShortcuts: e.target.checked })}
+                        className="w-4 h-4 accent-blue-500 cursor-pointer"
+                      />
+                      <span className="text-xs text-[#e5e7eb]">Show shortcuts</span>
+                    </div>
+                    <kbd className="px-2 py-1 rounded bg-[#262626] border border-[#383838] text-[11px] font-mono text-[#a3a3a3]">
+                      Ctrl + /
+                    </kbd>
+                  </div>
+
+                  {/* Search */}
+                  <div className="flex items-center justify-between py-1.5">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={shortcuts.search}
+                        onChange={(e) => setShortcuts({ ...shortcuts, search: e.target.checked })}
+                        className="w-4 h-4 accent-blue-500 cursor-pointer"
+                      />
+                      <span className="text-xs text-[#e5e7eb]">Search</span>
+                    </div>
+                    <kbd className="px-2 py-1 rounded bg-[#262626] border border-[#383838] text-[11px] font-mono text-[#a3a3a3]">
+                      Ctrl + K
+                    </kbd>
+                  </div>
+
+                  {/* Toggle dev mode */}
+                  <div className="flex items-center justify-between py-1.5">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={shortcuts.toggleDevMode}
+                        onChange={(e) => setShortcuts({ ...shortcuts, toggleDevMode: e.target.checked })}
+                        className="w-4 h-4 accent-blue-500 cursor-pointer"
+                      />
+                      <span className="text-xs text-[#e5e7eb]">Toggle dev mode</span>
+                    </div>
+                    <kbd className="px-2 py-1 rounded bg-[#262626] border border-[#383838] text-[11px] font-mono text-[#a3a3a3]">
+                      Ctrl + .
+                    </kbd>
+                  </div>
+
+                  {/* Toggle sidebar */}
+                  <div className="flex items-center justify-between py-1.5">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={shortcuts.toggleSidebar}
+                        onChange={(e) => setShortcuts({ ...shortcuts, toggleSidebar: e.target.checked })}
+                        className="w-4 h-4 accent-blue-500 cursor-pointer"
+                      />
+                      <span className="text-xs text-[#e5e7eb]">Toggle sidebar</span>
+                    </div>
+                    <kbd className="px-2 py-1 rounded bg-[#262626] border border-[#383838] text-[11px] font-mono text-[#a3a3a3]">
+                      Ctrl + Shift + S
+                    </kbd>
+                  </div>
+
+                  {/* Set custom instructions */}
+                  <div className="flex items-center justify-between py-1.5">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={shortcuts.setCustomInstructions}
+                        onChange={(e) => setShortcuts({ ...shortcuts, setCustomInstructions: e.target.checked })}
+                        className="w-4 h-4 accent-blue-500 cursor-pointer"
+                      />
+                      <span className="text-xs text-[#e5e7eb]">Set custom instructions</span>
+                    </div>
+                    <kbd className="px-2 py-1 rounded bg-[#262626] border border-[#383838] text-[11px] font-mono text-[#a3a3a3]">
+                      Ctrl + Shift + I
+                    </kbd>
+                  </div>
+
+                  {/* Copy last code block */}
+                  <div className="flex items-center justify-between py-1.5">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={shortcuts.copyLastCodeBlock}
+                        onChange={(e) => setShortcuts({ ...shortcuts, copyLastCodeBlock: e.target.checked })}
+                        className="w-4 h-4 accent-blue-500 cursor-pointer"
+                      />
+                      <span className="text-xs text-[#e5e7eb]">Copy last code block</span>
+                    </div>
+                    <kbd className="px-2 py-1 rounded bg-[#262626] border border-[#383838] text-[11px] font-mono text-[#a3a3a3]">
+                      Ctrl + Shift + ;
+                    </kbd>
+                  </div>
+
+                  {/* Delete chat */}
+                  <div className="flex items-center justify-between py-1.5">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={shortcuts.deleteChat}
+                        onChange={(e) => setShortcuts({ ...shortcuts, deleteChat: e.target.checked })}
+                        className="w-4 h-4 accent-blue-500 cursor-pointer"
+                      />
+                      <span className="text-xs text-[#e5e7eb]">Delete chat</span>
+                    </div>
+                    <kbd className="px-2 py-1 rounded bg-[#262626] border border-[#383838] text-[11px] font-mono text-[#a3a3a3]">
+                      Ctrl + Shift + ⌫
+                    </kbd>
+                  </div>
+                </div>
+
+                {/* Restore Defaults Button (Exact Match to Screenshot) */}
+                <div className="flex justify-end pt-3">
+                  <button
+                    onClick={() => setShortcuts(defaultShortcuts)}
+                    className="px-4 py-2 rounded-xl bg-[#262626] hover:bg-[#333333] text-white font-medium text-xs transition cursor-pointer border border-[#383838]"
+                  >
+                    Restore defaults
+                  </button>
+                </div>
               </div>
             )}
           </div>
