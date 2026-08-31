@@ -300,6 +300,17 @@ export const Sidebar: React.FC = () => {
                 <span>Settings</span>
               </button>
 
+              <button
+                onClick={() => {
+                  setProfileMenuOpen(false);
+                  setActiveModal('commandPalette');
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[var(--text-primary)] hover:bg-[var(--bg-sidebar-hover)] transition cursor-pointer text-left"
+              >
+                <Sparkles className="w-4 h-4 text-indigo-400" />
+                <span>Help & Shortcuts</span>
+              </button>
+
               <div className="border-t border-[var(--border-subtle)] my-0.5 pt-0.5">
                 <button
                   onClick={() => {

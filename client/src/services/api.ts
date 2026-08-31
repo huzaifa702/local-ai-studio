@@ -217,6 +217,29 @@ export const api = {
     if (!res.ok) throw new Error('Failed to clear conversations');
   },
 
+  async shareConversation(convId: string): Promise<{ success: boolean; shareToken: string; shareUrl: string; title: string }> {
+    const res = await fetch(`${API_BASE}/chat/conversations/${convId}/share`, {
+      method: 'POST',
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error('Failed to share conversation');
+    return res.json();
+  },
+
+  async getSharedConversation(shareToken: string): Promise<{ title: string; createdAt: string; messages: any[] }> {
+    const res = await fetch(`${API_BASE}/chat/shared/${shareToken}`);
+    if (!res.ok) throw new Error('Failed to load shared conversation');
+    return res.json();
+  },
+
+  async getConversationFiles(convId: string): Promise<{ conversationId: string; files: any[] }> {
+    const res = await fetch(`${API_BASE}/chat/conversations/${convId}/files`, {
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error('Failed to load conversation files');
+    return res.json();
+  },
+
   async submitFeedback(messageId: string, feedback: 'like' | 'dislike'): Promise<void> {
     await fetch(`${API_BASE}/chat/messages/${messageId}/feedback`, {
       method: 'POST',

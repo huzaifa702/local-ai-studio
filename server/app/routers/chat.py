@@ -180,6 +180,87 @@ async def update_conversation(conv_id: str, req: ConversationUpdate, user_id: st
     finally:
         await db.close()
 
+@router.post("/conversations/{conv_id}/share")
+async def share_conversation(conv_id: str, user_id: str = Depends(get_current_user_id)):
+    db = await get_db()
+    try:
+        cursor = await db.execute("SELECT id, title FROM conversations WHERE id = ?", (conv_id,))
+        conv = await cursor.fetchone()
+        if not conv:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+        
+        # Check if already shared
+        cursor = await db.execute("SELECT share_token FROM shared_chats WHERE conversation_id = ?", (conv_id,))
+        existing = await cursor.fetchone()
+        if existing:
+            token = existing["share_token"]
+        else:
+            token = str(uuid.uuid4())[:12]
+            await db.execute(
+                "INSERT INTO shared_chats (id, conversation_id, user_id, title, share_token) VALUES (?, ?, ?, ?, ?)",
+                (str(uuid.uuid4()), conv_id, user_id, conv["title"], token)
+            )
+            await db.commit()
+            
+        return {
+            "success": True,
+            "shareToken": token,
+            "shareUrl": f"http://localhost:5173/share/{token}",
+            "title": conv["title"]
+        }
+    finally:
+        await db.close()
+
+@router.get("/shared/{share_token}")
+async def get_shared_conversation(share_token: str):
+    db = await get_db()
+    try:
+        cursor = await db.execute("SELECT conversation_id, title, created_at FROM shared_chats WHERE share_token = ?", (share_token,))
+        shared = await cursor.fetchone()
+        if not shared:
+            raise HTTPException(status_code=404, detail="Shared chat not found or expired")
+        
+        conv_id = shared["conversation_id"]
+        cursor = await db.execute(
+            "SELECT id, role, content, thought, attachments_json, citations_json, created_at FROM messages WHERE conversation_id = ? ORDER BY created_at ASC",
+            (conv_id,)
+        )
+        msg_rows = await cursor.fetchall()
+        msgs = []
+        for mr in msg_rows:
+            m = dict(mr)
+            m["attachments"] = json.loads(m.get("attachments_json") or "[]")
+            m["citations"] = json.loads(m.get("citations_json") or "[]")
+            msgs.append(m)
+            
+        return {
+            "title": shared["title"],
+            "createdAt": shared["created_at"],
+            "messages": msgs
+        }
+    finally:
+        await db.close()
+
+@router.get("/conversations/{conv_id}/files")
+async def get_conversation_files(conv_id: str, user_id: str = Depends(get_current_user_id)):
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            "SELECT id, role, attachments_json, created_at FROM messages WHERE conversation_id = ? AND attachments_json IS NOT NULL AND attachments_json != '[]'",
+            (conv_id,)
+        )
+        rows = await cursor.fetchall()
+        files = []
+        for r in rows:
+            atts = json.loads(r["attachments_json"] or "[]")
+            for a in atts:
+                a["messageId"] = r["id"]
+                a["createdAt"] = r["created_at"]
+                files.append(a)
+        return {"conversationId": conv_id, "files": files}
+    finally:
+        await db.close()
+
 @router.delete("/conversations/{conv_id}")
 async def delete_conversation(conv_id: str, user_id: str = Depends(get_current_user_id)):
     db = await get_db()

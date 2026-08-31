@@ -107,6 +107,17 @@ async def init_db():
         """)
 
         await db.execute("""
+        CREATE TABLE IF NOT EXISTS shared_chats (
+            id TEXT PRIMARY KEY,
+            conversation_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            title TEXT NOT NULL,
+            share_token TEXT UNIQUE NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
+
+        await db.execute("""
         CREATE TABLE IF NOT EXISTS agent_sessions (
             id TEXT PRIMARY KEY,
             user_id TEXT DEFAULT 'local_user',
