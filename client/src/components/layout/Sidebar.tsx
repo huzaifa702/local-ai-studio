@@ -19,7 +19,9 @@ import {
   Clock,
   MoreHorizontal,
   Sparkles,
-  Zap
+  Zap,
+  ChevronRight,
+  HelpCircle
 } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
 import type { Conversation } from '../../types';
@@ -261,68 +263,89 @@ export const Sidebar: React.FC = () => {
       {user ? (
         /* Logged-In User Profile Card (Screenshot 1) */
         <div className="p-2 border-t border-[var(--border-sidebar)] relative" ref={profileRef}>
-          {/* Profile Menu Popup */}
+          {/* Profile Menu Popup (Exact Match to User Screenshot) */}
           {profileMenuOpen && (
-            <div className="absolute bottom-16 left-2 right-2 p-1.5 bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl shadow-2xl space-y-1 z-40 text-xs animate-in fade-in slide-in-from-bottom-2">
-              <div className="px-3 py-2 border-b border-[var(--border-subtle)] flex items-center justify-between">
-                <div className="min-w-0">
-                  <div className="font-semibold text-[var(--text-primary)] truncate">
-                    {user.displayName || user.username || 'Huzaifa Rajput'}
+            <div className="absolute bottom-16 left-2 right-2 p-1.5 bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl shadow-2xl z-40 text-xs animate-in fade-in slide-in-from-bottom-2">
+              {/* Top User Account Header */}
+              <div 
+                onClick={() => {
+                  setProfileMenuOpen(false);
+                  setActiveModal('auth');
+                }}
+                className="px-3 py-2.5 flex items-center justify-between hover:bg-[var(--bg-sidebar-hover)] rounded-xl cursor-pointer transition"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-7 h-7 rounded-full bg-amber-700 text-white font-bold text-[11px] flex items-center justify-center shrink-0 shadow-sm">
+                    {getInitials(user.displayName || user.username)}
                   </div>
-                  <div className="text-[10px] text-[var(--text-muted)] truncate">
-                    {user.email || 'Local Account'}
+                  <div className="min-w-0">
+                    <div className="font-semibold text-xs text-[var(--text-main)] truncate">
+                      {user.displayName || user.username || 'huzaifa rajput'}
+                    </div>
+                    <div className="text-[10px] text-[var(--text-muted)] truncate">
+                      Free
+                    </div>
                   </div>
                 </div>
-                <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-bold text-[10px]">
-                  Free
-                </span>
+                <ChevronRight className="w-4 h-4 text-[var(--text-muted)] shrink-0" />
               </div>
-              
+
+              {/* Divider */}
+              <div className="h-[1px] bg-[var(--border-subtle)] my-1" />
+
+              {/* 1. Profile */}
               <button
                 onClick={() => {
                   setProfileMenuOpen(false);
                   setActiveModal('auth');
                 }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[var(--text-primary)] hover:bg-[var(--bg-sidebar-hover)] transition cursor-pointer text-left font-medium"
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[var(--text-main)] hover:bg-[var(--bg-sidebar-hover)] transition cursor-pointer text-left font-normal"
               >
-                <User className="w-4 h-4 text-[var(--text-muted)]" />
+                <User className="w-4 h-4 text-[var(--text-sub)]" />
                 <span>Profile</span>
               </button>
 
+              {/* 2. Settings */}
               <button
                 onClick={() => {
                   setProfileMenuOpen(false);
                   setActiveModal('settings');
                 }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[var(--text-primary)] hover:bg-[var(--bg-sidebar-hover)] transition cursor-pointer text-left"
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[var(--text-main)] hover:bg-[var(--bg-sidebar-hover)] transition cursor-pointer text-left font-normal"
               >
-                <SettingsIcon className="w-4 h-4 text-[var(--text-muted)]" />
+                <SettingsIcon className="w-4 h-4 text-[var(--text-sub)]" />
                 <span>Settings</span>
               </button>
 
+              {/* Divider */}
+              <div className="h-[1px] bg-[var(--border-subtle)] my-1" />
+
+              {/* 3. Help */}
               <button
                 onClick={() => {
                   setProfileMenuOpen(false);
                   setActiveModal('commandPalette');
                 }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[var(--text-primary)] hover:bg-[var(--bg-sidebar-hover)] transition cursor-pointer text-left"
+                className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-[var(--text-main)] hover:bg-[var(--bg-sidebar-hover)] transition cursor-pointer text-left font-normal"
               >
-                <Sparkles className="w-4 h-4 text-indigo-400" />
-                <span>Help & Shortcuts</span>
+                <div className="flex items-center gap-2.5">
+                  <HelpCircle className="w-4 h-4 text-[var(--text-sub)]" />
+                  <span>Help</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-[var(--text-muted)]" />
               </button>
 
-              <div className="border-t border-[var(--border-subtle)] my-0.5 pt-0.5">
-                <button
-                  onClick={() => {
-                    setProfileMenuOpen(false);
-                    logout();
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-rose-400 hover:bg-rose-500/10 transition cursor-pointer text-left"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span>Log out</span>
-                </button>
-              </div>
+              {/* 4. Log out */}
+              <button
+                onClick={() => {
+                  setProfileMenuOpen(false);
+                  logout();
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[var(--text-main)] hover:bg-rose-500/10 hover:text-rose-400 transition cursor-pointer text-left font-normal"
+              >
+                <LogOut className="w-4 h-4 text-[var(--text-sub)]" />
+                <span>Log out</span>
+              </button>
             </div>
           )}
 
