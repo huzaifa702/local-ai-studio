@@ -31,22 +31,16 @@ export const AuthModal: React.FC = () => {
     const google = (window as any).google;
     if (google?.accounts?.id && googleBtnRef.current) {
       try {
-        // Default Google Client ID or user-configured
-        const clientId = '1088496467389-mockauth2026.apps.googleusercontent.com';
+        const clientId = '726426845811-ibbspi9a7cld4mr126q9nvr4hn8vo9ak.apps.googleusercontent.com';
 
         google.accounts.id.initialize({
           client_id: clientId,
           callback: async (response: any) => {
-            if (response.credential) {
+            if (response?.credential) {
               setLoading(true);
               setError(null);
               try {
-                const u = await api.loginGoogle(
-                  '', // Backend will decode from credential token
-                  '',
-                  '',
-                  undefined
-                );
+                const u = await api.loginGoogle(response.credential);
                 setUser(u);
                 setActiveModal(null);
               } catch (err: any) {

@@ -63,11 +63,11 @@ export const api = {
     return data;
   },
 
-  async loginGoogle(email: string, name?: string, picture?: string, googleId?: string): Promise<UserProfile> {
+  async loginGoogle(credential?: string, email?: string, name?: string, picture?: string, googleId?: string): Promise<UserProfile> {
     const res = await fetch(`${API_BASE}/auth/google`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, name, picture, googleId })
+      body: JSON.stringify({ credential, email, name, picture, googleId })
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: 'Google login failed' }));
