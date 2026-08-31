@@ -305,7 +305,8 @@ async def send_message(req: SendMessageRequest, user_id: str = Depends(get_curre
                 images=req.images,
                 temperature=req.temperature or 0.7,
                 cloud_api_key=req.cloudApiKey,
-                provider=req.provider or "ollama"
+                provider=req.provider or "ollama",
+                think_enabled=req.thinkEnabled
             ):
                 if "error" in token:
                     err_msg = token["error"]

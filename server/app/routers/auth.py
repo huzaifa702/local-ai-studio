@@ -106,25 +106,21 @@ class UserProfileUpdate(BaseModel):
     email: Optional[str] = None
 
 @router.get("/me")
-async def get_current_user_profile(user_id: str = Depends(get_current_user_id)):
+async def get_current_user_profile(authorization: Optional[str] = Header(None)):
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Not logged in")
+    token = authorization.replace("Bearer ", "").strip()
+    payload = decode_jwt_token(token)
+    if not payload or "sub" not in payload:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    user_id = payload["sub"]
     db = await get_db()
     try:
         cursor = await db.execute("SELECT id, username, email, phone_number, display_name, avatar, created_at FROM users WHERE id = ?", (user_id,))
         user = await cursor.fetchone()
         if not user:
-            # Seed default local developer user if not present
-            cursor = await db.execute(
-                "SELECT id, username, email, phone_number, display_name, avatar, created_at FROM users WHERE id = 'local_user'"
-            )
-            user = await cursor.fetchone()
-            if not user:
-                await db.execute(
-                    "INSERT INTO users (id, username, email, display_name, avatar) VALUES ('local_user', 'developer', 'local@ai.dev', 'huzaifa rajput', 'HR')"
-                )
-                await db.commit()
-                cursor = await db.execute("SELECT id, username, email, phone_number, display_name, avatar, created_at FROM users WHERE id = 'local_user'")
-                user = await cursor.fetchone()
-        
+            raise HTTPException(status_code=404, detail="User not found")
         return format_user_response(dict(user))
     finally:
         await db.close()

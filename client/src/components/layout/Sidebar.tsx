@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   SquarePen, 
   Search, 
@@ -14,7 +14,12 @@ import {
   PanelLeftClose,
   LogOut,
   User,
-  ShieldCheck
+  Image as ImageIcon,
+  BookMarked,
+  Clock,
+  MoreHorizontal,
+  Sparkles,
+  Zap
 } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
 import type { Conversation } from '../../types';
@@ -34,12 +39,30 @@ export const Sidebar: React.FC = () => {
     setSearchQuery,
     user,
     setActiveModal,
+    setSelectedModel,
     logout
   } = useAppStore();
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+
+  const profileRef = useRef<HTMLDivElement>(null);
+  const moreRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileMenuOpen(false);
+      }
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setMoreMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const pinned = conversations.filter(c => Boolean(c.is_pinned) && !Boolean(c.is_archived));
   const unpinned = conversations.filter(c => !Boolean(c.is_pinned) && !Boolean(c.is_archived));
@@ -71,10 +94,13 @@ export const Sidebar: React.FC = () => {
         sidebarOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full md:w-0 md:translate-x-0 overflow-hidden border-none'
       }`}
     >
-      {/* Sidebar Top Header */}
+      {/* Sidebar Top Header: Guts AI Branding */}
       <div className="p-3 flex items-center justify-between">
         <div className="flex items-center gap-2 font-bold text-sm text-[var(--text-main)] px-2">
-          <span>ChatGPT</span>
+          <div className="w-5 h-5 rounded-md bg-gradient-to-tr from-indigo-500 to-blue-500 flex items-center justify-center text-white text-[10px]">
+            G
+          </div>
+          <span>Guts AI</span>
         </div>
         <div className="flex items-center gap-1">
           <button
@@ -94,7 +120,7 @@ export const Sidebar: React.FC = () => {
         </div>
       </div>
 
-      {/* ONLY Real, Functional Navigation Features */}
+      {/* Main Navigation Actions (Matching Screenshot 1) */}
       <div className="px-2 space-y-0.5">
         <button
           onClick={() => createNewChat()}
@@ -104,6 +130,37 @@ export const Sidebar: React.FC = () => {
           <span>New chat</span>
         </button>
 
+        {/* Images / Vision Mode */}
+        <button
+          onClick={() => {
+            setSelectedModel('moondream:latest', 'ollama');
+            createNewChat();
+          }}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] font-medium text-xs transition cursor-pointer"
+        >
+          <ImageIcon className="w-4 h-4 text-[var(--text-sub)]" />
+          <span>Images</span>
+        </button>
+
+        {/* Library / Saved Chats */}
+        <button
+          onClick={() => setActiveModal('memory')}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] font-medium text-xs transition cursor-pointer"
+        >
+          <BookMarked className="w-4 h-4 text-[var(--text-sub)]" />
+          <span>Library</span>
+        </button>
+
+        {/* Scheduled Tasks */}
+        <button
+          onClick={() => setActiveModal('commandPalette')}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] font-medium text-xs transition cursor-pointer"
+        >
+          <Clock className="w-4 h-4 text-[var(--text-sub)]" />
+          <span>Scheduled</span>
+        </button>
+
+        {/* Projects */}
         <button
           onClick={() => setActiveModal('projects')}
           className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] font-medium text-xs transition cursor-pointer"
@@ -112,55 +169,85 @@ export const Sidebar: React.FC = () => {
           <span>Projects</span>
         </button>
 
-        <button
-          onClick={() => setActiveModal('models')}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] font-medium text-xs transition cursor-pointer"
-        >
-          <Cpu className="w-4 h-4 text-[var(--text-sub)]" />
-          <span>Models Hub</span>
-        </button>
+        {/* ... More Menu */}
+        <div className="relative" ref={moreRef}>
+          <button
+            onClick={() => setMoreMenuOpen(!moreMenuOpen)}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] font-medium text-xs transition cursor-pointer"
+          >
+            <MoreHorizontal className="w-4 h-4 text-[var(--text-sub)]" />
+            <span>More</span>
+          </button>
 
-        <button
-          onClick={() => setActiveModal('memory')}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] font-medium text-xs transition cursor-pointer"
-        >
-          <Brain className="w-4 h-4 text-[var(--text-sub)]" />
-          <span>Memory & Context</span>
-        </button>
-
-        <button
-          onClick={() => setActiveModal('settings')}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] font-medium text-xs transition cursor-pointer"
-        >
-          <SettingsIcon className="w-4 h-4 text-[var(--text-sub)]" />
-          <span>Settings</span>
-        </button>
-      </div>
-
-      {/* Real Search Input */}
-      <div className="px-3 pt-3 pb-1">
-        <div className="relative">
-          <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-          <input
-            type="text"
-            placeholder="Search chats..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-2.5 py-1.5 rounded-lg bg-[var(--bg-sidebar-hover)] border border-transparent focus:border-[var(--border-input)] text-xs text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none"
-          />
+          {moreMenuOpen && (
+            <div className="absolute left-4 bottom-10 w-52 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-medium)] shadow-2xl p-1.5 z-40 text-xs animate-in fade-in space-y-0.5">
+              <button
+                onClick={() => {
+                  setMoreMenuOpen(false);
+                  setActiveModal('models');
+                }}
+                className="w-full text-left px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] flex items-center gap-2.5 transition cursor-pointer"
+              >
+                <Cpu className="w-4 h-4 text-indigo-400" />
+                <span>Models Hub</span>
+              </button>
+              <button
+                onClick={() => {
+                  setMoreMenuOpen(false);
+                  setActiveModal('memory');
+                }}
+                className="w-full text-left px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] flex items-center gap-2.5 transition cursor-pointer"
+              >
+                <Brain className="w-4 h-4 text-purple-400" />
+                <span>Memory & Context</span>
+              </button>
+              <button
+                onClick={() => {
+                  setMoreMenuOpen(false);
+                  setActiveModal('settings');
+                }}
+                className="w-full text-left px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] flex items-center gap-2.5 transition cursor-pointer"
+              >
+                <SettingsIcon className="w-4 h-4 text-[var(--text-muted)]" />
+                <span>Settings</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Recents Chat List */}
+      {/* Pinned Section */}
+      {pinned.length > 0 && (
+        <div className="px-2 pt-3 space-y-0.5 text-xs">
+          <div className="px-3 py-1 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">
+            Pinned
+          </div>
+          {pinned.map((c) => renderConversationRow(c, true))}
+        </div>
+      )}
+
+      {/* Recents Section with Search */}
       <div className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5 text-xs">
-        <div className="px-3 py-1.5 text-[11px] font-semibold text-[var(--text-muted)]">
-          Recents
+        <div className="px-3 pt-1 pb-1 flex items-center justify-between">
+          <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">
+            Recents
+          </span>
         </div>
 
-        {/* Pinned */}
-        {pinned.map((c) => renderConversationRow(c, true))}
+        {/* Search Chats */}
+        <div className="px-1 pb-1.5">
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+            <input
+              type="text"
+              placeholder="Search chats..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-8 pr-2.5 py-1.5 rounded-xl bg-[var(--bg-sidebar-hover)] border border-transparent focus:border-[var(--border-input)] text-xs text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none"
+            />
+          </div>
+        </div>
 
-        {/* Unpinned */}
         {unpinned.map((c) => renderConversationRow(c, false))}
 
         {conversations.length === 0 && (
@@ -170,86 +257,114 @@ export const Sidebar: React.FC = () => {
         )}
       </div>
 
-      {/* Real User Profile Footer */}
-      <div className="p-2 border-t border-[var(--border-sidebar)] relative">
-        {/* Profile Action Menu Popup */}
-        {profileMenuOpen && (
-          <div className="absolute bottom-16 left-2 right-2 p-1.5 bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl shadow-2xl space-y-1 z-40 text-xs animate-in fade-in slide-in-from-bottom-2">
-            <div className="px-3 py-2 border-b border-[var(--border-subtle)] flex items-center justify-between">
-              <div className="min-w-0">
-                <div className="font-semibold text-[var(--text-primary)] truncate">
-                  {user?.displayName || user?.username || 'Huzaifa Rajput'}
+      {/* Bottom Footer Section */}
+      {user ? (
+        /* Logged-In User Profile Card (Screenshot 1) */
+        <div className="p-2 border-t border-[var(--border-sidebar)] relative" ref={profileRef}>
+          {/* Profile Menu Popup */}
+          {profileMenuOpen && (
+            <div className="absolute bottom-16 left-2 right-2 p-1.5 bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl shadow-2xl space-y-1 z-40 text-xs animate-in fade-in slide-in-from-bottom-2">
+              <div className="px-3 py-2 border-b border-[var(--border-subtle)] flex items-center justify-between">
+                <div className="min-w-0">
+                  <div className="font-semibold text-[var(--text-primary)] truncate">
+                    {user.displayName || user.username || 'Huzaifa Rajput'}
+                  </div>
+                  <div className="text-[10px] text-[var(--text-muted)] truncate">
+                    {user.email || 'Local Account'}
+                  </div>
                 </div>
-                <div className="text-[10px] text-[var(--text-muted)] truncate">
-                  {user?.email || 'Local Account'}
-                </div>
+                <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-bold text-[10px]">
+                  Free
+                </span>
               </div>
-              <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-bold text-[10px]">
-                Active
-              </span>
+              
+              <button
+                onClick={() => {
+                  setProfileMenuOpen(false);
+                  setActiveModal('auth');
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[var(--text-primary)] hover:bg-[var(--bg-sidebar-hover)] transition cursor-pointer text-left font-medium"
+              >
+                <User className="w-4 h-4 text-[var(--text-muted)]" />
+                <span>Profile</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setProfileMenuOpen(false);
+                  setActiveModal('settings');
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[var(--text-primary)] hover:bg-[var(--bg-sidebar-hover)] transition cursor-pointer text-left"
+              >
+                <SettingsIcon className="w-4 h-4 text-[var(--text-muted)]" />
+                <span>Settings</span>
+              </button>
+
+              <div className="border-t border-[var(--border-subtle)] my-0.5 pt-0.5">
+                <button
+                  onClick={() => {
+                    setProfileMenuOpen(false);
+                    logout();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-rose-400 hover:bg-rose-500/10 transition cursor-pointer text-left"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Log out</span>
+                </button>
+              </div>
             </div>
-            
-            <button
-              onClick={() => {
-                setProfileMenuOpen(false);
-                setActiveModal('auth');
-              }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[var(--text-primary)] hover:bg-[var(--bg-sidebar-hover)] transition cursor-pointer text-left font-medium"
-            >
-              <User className="w-4 h-4 text-[var(--text-muted)]" />
-              <span>Sign In / Switch Account</span>
-            </button>
+          )}
 
-            <button
-              onClick={() => {
-                setProfileMenuOpen(false);
-                setActiveModal('settings');
-              }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[var(--text-primary)] hover:bg-[var(--bg-sidebar-hover)] transition cursor-pointer text-left"
-            >
-              <SettingsIcon className="w-4 h-4 text-[var(--text-muted)]" />
-              <span>Settings & API Keys</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setProfileMenuOpen(false);
-                logout();
-              }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-red-400 hover:bg-red-500/10 transition cursor-pointer text-left"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Log Out</span>
-            </button>
-          </div>
-        )}
-
-        <div className="flex items-center justify-between p-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] transition group">
+          {/* User Card */}
           <div 
             onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-            className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
+            className="flex items-center justify-between p-2 rounded-2xl hover:bg-[var(--bg-sidebar-hover)] transition cursor-pointer group"
           >
-            <div className="w-8 h-8 rounded-full bg-amber-700 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-sm">
-              {getInitials(user?.displayName || user?.username || 'HR')}
-            </div>
-            <div className="min-w-0">
-              <div className="font-semibold text-xs text-[var(--text-main)] truncate">
-                {user?.displayName || user?.username || 'huzaifa rajput'}
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <div className="w-8 h-8 rounded-full bg-amber-700 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-sm">
+                {getInitials(user.displayName || user.username)}
               </div>
-              <div className="text-[10px] text-[var(--text-muted)] truncate">
-                {user?.email ? user.email : 'Local Account'}
+              <div className="min-w-0">
+                <div className="font-semibold text-xs text-[var(--text-main)] truncate">
+                  {user.displayName || user.username || 'huzaifa rajput'}
+                </div>
+                <div className="text-[10px] text-[var(--text-muted)] truncate">
+                  {user.email ? 'Free' : 'Local'}
+                </div>
               </div>
             </div>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveModal('models');
+              }}
+              className="px-2.5 py-1 rounded-full bg-[var(--bg-surface)] hover:bg-[var(--border-subtle)] border border-[var(--border-subtle)] text-[10px] font-semibold text-[var(--text-main)] transition cursor-pointer shrink-0 ml-1"
+            >
+              Upgrade
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* Logged-Out Guest Card (Screenshot 2) */
+        <div className="p-3 border-t border-[var(--border-sidebar)] space-y-3">
+          <div className="space-y-1">
+            <div className="font-semibold text-xs text-[var(--text-main)]">
+              Get responses tailored to you
+            </div>
+            <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+              Log in to get answers based on saved chats, plus create images and upload files.
+            </p>
           </div>
 
           <button
             onClick={() => setActiveModal('auth')}
-            className="px-2.5 py-1 rounded-full bg-[var(--bg-surface)] hover:bg-[var(--bg-sidebar-hover)] border border-[var(--border-medium)] text-[11px] font-semibold text-[var(--text-primary)] transition cursor-pointer shrink-0 ml-1"
+            className="w-full py-2 rounded-full bg-white hover:bg-slate-200 text-black font-semibold text-xs shadow-md transition cursor-pointer"
           >
-            Account
+            Log in
           </button>
         </div>
-      </div>
+      )}
     </aside>
   );
 

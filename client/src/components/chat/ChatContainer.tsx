@@ -3,7 +3,8 @@ import {
   Image as ImageIcon, 
   PenLine, 
   Globe, 
-  ArrowDown
+  ArrowDown,
+  Sparkles
 } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
 import { MessageItem } from './MessageItem';
@@ -17,7 +18,10 @@ export const ChatContainer: React.FC = () => {
     streamingContent, 
     streamingCitations,
     sendMessage,
-    selectedModel
+    selectedModel,
+    user,
+    toggleSearch,
+    setSelectedModel
   } = useAppStore();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -43,24 +47,6 @@ export const ChatContainer: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const suggestions = [
-    {
-      icon: ImageIcon,
-      text: 'Analyze an image or screenshot',
-      prompt: 'Describe what you see in this image and extract any text or data from it.'
-    },
-    {
-      icon: PenLine,
-      text: 'Write or edit',
-      prompt: 'Help me draft and edit a well-structured document.'
-    },
-    {
-      icon: Globe,
-      text: 'Code & problem solve',
-      prompt: 'Write clean, robust Python code with error handling.'
-    }
-  ];
-
   return (
     <div className="flex-1 flex flex-col h-full bg-[var(--bg-main)] overflow-hidden relative">
       {/* Messages Scroll Area */}
@@ -70,30 +56,62 @@ export const ChatContainer: React.FC = () => {
         className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col"
       >
         {messages.length === 0 && !isStreaming ? (
-          /* Exact ChatGPT Home Screen Layout (From User Screenshot) */
+          /* Exact Home Screen Layout matching User Screenshots */
           <div className="max-w-2xl w-full mx-auto px-4 my-auto flex flex-col items-center justify-center text-center space-y-6 animate-in fade-in pb-12">
-            <h1 className="text-3xl sm:text-4xl font-semibold text-[var(--text-main)] tracking-tight">
-              What's on the agenda today?
+            <h1 className="text-3xl sm:text-4xl font-medium text-[var(--text-main)] tracking-tight">
+              {user ? "What’s on your mind today?" : "Where should we begin?"}
             </h1>
 
-            {/* Centered ChatGPT Input Box */}
+            {/* Centered Floating Input Box */}
             <div className="w-full">
               <MessageInput />
             </div>
 
-            {/* 3 Suggestions list below Input */}
-            <div className="flex flex-col items-start gap-2 w-full max-w-xl text-left pt-2">
-              {suggestions.map((item, idx) => (
+            {/* Quick Starter Chips Below Input */}
+            {user ? (
+              /* Logged In Starter Options (Screenshot 1) */
+              <div className="flex flex-col items-start gap-1 w-full max-w-xl text-left pt-1">
                 <button
-                  key={idx}
-                  onClick={() => sendMessage(item.prompt, [], [])}
-                  className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-sub)] hover:text-[var(--text-main)] transition cursor-pointer w-full text-xs font-medium"
+                  onClick={() => {
+                    setSelectedModel('moondream:latest', 'ollama');
+                    sendMessage('Analyze this image and extract any key information, objects, and text.', [], []);
+                  }}
+                  className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-sub)] hover:text-[var(--text-main)] transition cursor-pointer w-full text-xs font-normal"
                 >
-                  <item.icon className="w-4 h-4 text-[var(--text-muted)] shrink-0" />
-                  <span>{item.text}</span>
+                  <ImageIcon className="w-4 h-4 text-[var(--text-muted)] shrink-0" />
+                  <span>Create an image or sticker / Vision scan</span>
                 </button>
-              ))}
-            </div>
+
+                <button
+                  onClick={() => sendMessage('Help me draft, format, and edit a well-structured document.', [], [])}
+                  className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-sub)] hover:text-[var(--text-main)] transition cursor-pointer w-full text-xs font-normal"
+                >
+                  <PenLine className="w-4 h-4 text-[var(--text-muted)] shrink-0" />
+                  <span>Write or edit</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    toggleSearch();
+                    sendMessage('What are the latest developments in AI and technology today?', [], [], true);
+                  }}
+                  className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-sub)] hover:text-[var(--text-main)] transition cursor-pointer w-full text-xs font-normal"
+                >
+                  <Globe className="w-4 h-4 text-[var(--text-muted)] shrink-0" />
+                  <span>Search the web</span>
+                </button>
+              </div>
+            ) : (
+              /* Logged Out Starter Pill (Screenshot 2) */
+              <div className="flex justify-center pt-2">
+                <button
+                  onClick={() => sendMessage('What can you do? Explain your local AI capabilities including coding, web search, reasoning, and vision.', [], [])}
+                  className="px-4 py-2 rounded-full border border-[var(--border-subtle)] hover:bg-[var(--bg-sidebar-hover)] text-xs text-[var(--text-main)] font-medium transition cursor-pointer shadow-sm"
+                >
+                  What can you do?
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           /* Active Chat Messages History */
@@ -111,7 +129,7 @@ export const ChatContainer: React.FC = () => {
               <div className="py-4 px-4 sm:px-6 md:px-8">
                 <div className="max-w-3xl w-full mx-auto space-y-2">
                   <div className="flex items-center gap-2 text-[11px] font-medium text-[var(--text-muted)]">
-                    <span>{selectedModel}</span>
+                    <span>{selectedModel === 'auto' ? 'Guts Omni' : selectedModel}</span>
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
                   </div>
 

@@ -10,7 +10,8 @@ import {
   Moon, 
   LogOut,
   Brain,
-  Cpu
+  Cpu,
+  Zap
 } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
 
@@ -18,7 +19,6 @@ export const Header: React.FC = () => {
   const {
     modelsData,
     selectedModel,
-    selectedProvider,
     setSelectedModel,
     setActiveModal,
     user,
@@ -26,7 +26,7 @@ export const Header: React.FC = () => {
     setSidebarOpen,
     settings,
     updateSettings,
-    setUser
+    logout
   } = useAppStore();
 
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
@@ -55,7 +55,7 @@ export const Header: React.FC = () => {
   };
 
   const getInitials = (name?: string) => {
-    if (!name) return 'U';
+    if (!name) return 'HR';
     const parts = name.trim().split(' ');
     if (parts.length > 1) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
     return name.slice(0, 2).toUpperCase();
@@ -63,7 +63,7 @@ export const Header: React.FC = () => {
 
   return (
     <header className="h-14 bg-[var(--bg-main)] px-4 flex items-center justify-between shrink-0 select-none border-b border-transparent">
-      {/* Left: ChatGPT Title & Model Selector Dropdown */}
+      {/* Left: Guts AI Title & Model Selector Dropdown */}
       <div className="flex items-center gap-2">
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -73,24 +73,24 @@ export const Header: React.FC = () => {
           <PanelLeft className="w-5 h-5" />
         </button>
 
-        {/* Model Picker Pill */}
+        {/* Guts AI Model Picker Pill */}
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] font-semibold text-lg tracking-tight transition cursor-pointer"
           >
-            <span>ChatGPT</span>
+            <span>Guts AI</span>
             <span className="text-xs text-[var(--text-muted)] font-normal ml-1 font-mono">
-              {selectedModel === 'auto' ? 'Auto (Omni)' : selectedModel}
+              {selectedModel === 'auto' ? 'Omni (Auto)' : selectedModel}
             </span>
             <ChevronDown className="w-4 h-4 text-[var(--text-muted)] mt-0.5" />
           </button>
 
-          {/* Clean ChatGPT Model Dropdown */}
+          {/* Model Selector Dropdown */}
           {modelDropdownOpen && (
             <div className="absolute left-0 mt-2 w-72 rounded-2xl bg-[var(--bg-input)] border border-[var(--border-input)] shadow-2xl p-2 z-50 text-xs animate-in fade-in">
               <div className="text-[11px] font-semibold text-[var(--text-muted)] px-3 py-1.5 uppercase tracking-wider">
-                Model Engine ({isOllamaRunning ? 'Local Free' : 'Offline'})
+                Intelligence Engine ({isOllamaRunning ? 'Local Free' : 'Offline'})
               </div>
 
               {/* Omni Model Option */}
@@ -105,9 +105,10 @@ export const Header: React.FC = () => {
               >
                 <div>
                   <div className="font-semibold text-sm flex items-center gap-1.5">
-                    <span>⚡ Auto (Omni-Model)</span>
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>⚡ Guts Omni (Auto)</span>
                   </div>
-                  <div className="text-[11px] text-[var(--text-muted)]">Automatically picks the best model for chat, code, or images</div>
+                  <div className="text-[11px] text-[var(--text-muted)]">Automatic routing for Chat, Vision, Code & Reasoning</div>
                 </div>
                 {selectedModel === 'auto' && <Check className="w-4 h-4 text-emerald-500" />}
               </button>
@@ -146,7 +147,7 @@ export const Header: React.FC = () => {
         </div>
       </div>
 
-      {/* Center: Clean Segmented Mode Control (Chat / Work) */}
+      {/* Center: Segmented Mode Control (Chat / Work) */}
       <div className="hidden sm:flex items-center p-1 rounded-full bg-[var(--bg-sidebar-hover)] border border-[var(--border-subtle)] text-xs font-semibold">
         <button className="px-5 py-1.5 rounded-full bg-[var(--bg-main)] text-[var(--text-main)] shadow-sm cursor-pointer">
           Chat
@@ -155,83 +156,112 @@ export const Header: React.FC = () => {
           onClick={() => setActiveModal('projects')}
           className="px-4 py-1.5 rounded-full text-[var(--text-muted)] hover:text-[var(--text-main)] transition cursor-pointer flex items-center gap-1"
         >
-          <span>+ Projects</span>
+          <span>+ Work</span>
         </button>
       </div>
 
-      {/* Right: Clean Upgrade & Profile Avatar */}
+      {/* Right Navigation */}
       <div className="flex items-center gap-3">
-        {/* Profile Avatar Button */}
-        <div className="relative" ref={userRef}>
-          <button
-            onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-            className="w-8 h-8 rounded-full bg-amber-700 text-white font-bold text-xs flex items-center justify-center cursor-pointer shadow-sm hover:opacity-90 transition"
-          >
-            {getInitials(user?.displayName || user?.username || 'HR')}
-          </button>
+        {user ? (
+          /* Logged-In User Header (Screenshot 1) */
+          <>
+            <button
+              onClick={() => setActiveModal('models')}
+              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-sidebar-hover)] hover:bg-[var(--border-subtle)] text-[var(--text-main)] text-xs font-semibold transition cursor-pointer border border-[var(--border-subtle)]"
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-400" />
+              <span>Upgrade</span>
+            </button>
 
-          {/* User Account Dropdown */}
-          {userDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-60 rounded-2xl bg-[var(--bg-input)] border border-[var(--border-input)] shadow-2xl p-2 z-50 text-xs animate-in fade-in">
-              <div className="px-3 py-2 border-b border-[var(--border-input)] mb-1">
-                <div className="font-bold text-sm text-[var(--text-main)]">
-                  {user?.displayName || 'Huzaifa Rajput'}
-                </div>
-                <div className="text-[var(--text-muted)] text-[11px]">
-                  {user?.email || 'Local Account (Free)'}
-                </div>
-              </div>
-
+            {/* User Profile Avatar */}
+            <div className="relative" ref={userRef}>
               <button
-                onClick={() => {
-                  setUserDropdownOpen(false);
-                  toggleTheme();
-                }}
-                className="w-full text-left px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] transition flex items-center justify-between cursor-pointer"
+                onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                className="w-8 h-8 rounded-full bg-amber-700 hover:bg-amber-600 text-white font-bold text-xs flex items-center justify-center cursor-pointer shadow-sm transition"
               >
-                <div className="flex items-center gap-2">
-                  {settings.theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                  <span>Theme: {settings.theme === 'dark' ? 'Dark' : 'Light'}</span>
-                </div>
+                {getInitials(user.displayName || user.username)}
               </button>
 
-              <button
-                onClick={() => {
-                  setUserDropdownOpen(false);
-                  setActiveModal('memory');
-                }}
-                className="w-full text-left px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] transition flex items-center gap-2 cursor-pointer"
-              >
-                <Brain className="w-4 h-4 text-purple-500" />
-                <span>Memory & Context</span>
-              </button>
+              {/* User Account Dropdown Menu */}
+              {userDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-[var(--bg-input)] border border-[var(--border-input)] shadow-2xl p-2 z-50 text-xs animate-in fade-in">
+                  <div className="px-3 py-2 border-b border-[var(--border-input)] mb-1">
+                    <div className="font-bold text-sm text-[var(--text-main)]">
+                      {user.displayName || 'Huzaifa Rajput'}
+                    </div>
+                    <div className="text-[var(--text-muted)] text-[11px]">
+                      {user.email || 'Local Account (Free)'}
+                    </div>
+                  </div>
 
-              <button
-                onClick={() => {
-                  setUserDropdownOpen(false);
-                  setActiveModal('settings');
-                }}
-                className="w-full text-left px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] transition flex items-center gap-2 cursor-pointer"
-              >
-                <SettingsIcon className="w-4 h-4 text-[var(--text-muted)]" />
-                <span>Settings</span>
-              </button>
+                  <button
+                    onClick={() => {
+                      setUserDropdownOpen(false);
+                      toggleTheme();
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] transition flex items-center justify-between cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      {settings.theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                      <span>Theme: {settings.theme === 'dark' ? 'Dark' : 'Light'}</span>
+                    </div>
+                  </button>
 
-              <div className="border-t border-[var(--border-input)] my-1 pt-1">
-                <button
-                  onClick={() => {
-                    setUserDropdownOpen(false);
-                    setActiveModal('auth');
-                  }}
-                  className="w-full text-left px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] transition flex items-center gap-2 cursor-pointer font-medium"
-                >
-                  <User className="w-4 h-4" />
-                  <span>Switch Account / Sign Out</span>
-                </button>
-              </div>
+                  <button
+                    onClick={() => {
+                      setUserDropdownOpen(false);
+                      setActiveModal('memory');
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] transition flex items-center gap-2 cursor-pointer"
+                  >
+                    <Brain className="w-4 h-4 text-purple-400" />
+                    <span>Memory & Context</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setUserDropdownOpen(false);
+                      setActiveModal('settings');
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] transition flex items-center gap-2 cursor-pointer"
+                  >
+                    <SettingsIcon className="w-4 h-4 text-[var(--text-muted)]" />
+                    <span>Settings</span>
+                  </button>
+
+                  <div className="border-t border-[var(--border-input)] my-1 pt-1">
+                    <button
+                      onClick={() => {
+                        setUserDropdownOpen(false);
+                        logout();
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-rose-500/10 text-rose-400 transition flex items-center gap-2 cursor-pointer font-medium"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>Log out</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </>
+        ) : (
+          /* Logged-Out Guest Header (Screenshot 2) */
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setActiveModal('auth')}
+              className="px-4 py-1.5 rounded-full bg-[var(--bg-sidebar-hover)] hover:bg-[var(--border-subtle)] text-[var(--text-main)] text-xs font-semibold transition cursor-pointer border border-[var(--border-subtle)]"
+            >
+              Log in
+            </button>
+            <button
+              onClick={() => setActiveModal('auth')}
+              className="px-4 py-1.5 rounded-full bg-white text-black hover:bg-slate-200 text-xs font-semibold shadow-sm transition cursor-pointer"
+            >
+              Sign up for free
+            </button>
+          </div>
+        )}
       </div>
     </header>
   );

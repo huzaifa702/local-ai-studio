@@ -76,14 +76,30 @@ class OllamaService:
         except Exception as e:
             yield json.dumps({"status": "error", "error": str(e)}) + "\n"
 
-    def resolve_auto_model(self, model: str, has_images: bool, content: str) -> str:
-        if model.lower() in ["auto", "omni", "auto-smart"]:
+    def resolve_auto_model(self, model: str, has_images: bool, content: str, think_enabled: bool = False) -> str:
+        if model.lower() in ["auto", "omni", "auto-smart", "guts-omni", "guts omni"]:
+            # 1. Vision Model
             if has_images:
-                return "llava:7b"
-            # Check for coding keywords
-            code_keywords = ["def ", "class ", "function", "import ", "const ", "var ", "let ", "```", "python", "javascript", "typescript", "html", "css", "sql", "bug", "refactor", "api", "docker"]
+                return "moondream:latest"
+
+            # 2. Reasoning Model (<think>)
+            if think_enabled:
+                return "deepseek-r1:7b"
+            
+            reasoning_keywords = ["reason", "prove", "step by step", "logic", "calculate", "derivative", "integral", "theorem", "why does", "deep analysis"]
+            if any(k in content.lower() for k in reasoning_keywords):
+                return "deepseek-r1:7b"
+
+            # 3. Coding Specialist Model
+            code_keywords = [
+                "def ", "class ", "function", "import ", "const ", "var ", "let ", 
+                "```", "python", "javascript", "typescript", "html", "css", "sql", 
+                "bug", "refactor", "api", "docker", "component", "interface", "react", "script"
+            ]
             if any(k in content.lower() for k in code_keywords):
                 return "qwen2.5-coder:7b"
+
+            # 4. Default Ultra-Fast Chat Model
             return "llama3.2:3b"
         return model
 
@@ -95,11 +111,12 @@ class OllamaService:
         images: Optional[List[str]] = None,
         temperature: float = 0.7,
         cloud_api_key: Optional[str] = None,
-        provider: Optional[str] = None
+        provider: Optional[str] = None,
+        think_enabled: bool = False
     ) -> AsyncGenerator[Dict[str, Any], None]:
         # Resolve auto model if requested
         last_text = messages[-1]["content"] if messages else ""
-        resolved_model = self.resolve_auto_model(model, bool(images), last_text)
+        resolved_model = self.resolve_auto_model(model, bool(images), last_text, think_enabled)
         
         # 1. Cloud Provider Fallback if API key provided
         if cloud_api_key and provider and provider != "ollama":
