@@ -164,18 +164,35 @@ export const VoiceModeModal: React.FC = () => {
     };
   }, [mode, isHoldingPtt, transcript]);
 
+  const accumulatedStreamRef = useRef<string>('');
+
+  // Keep track of streaming content
+  useEffect(() => {
+    if (isStreaming && streamingContent) {
+      accumulatedStreamRef.current = streamingContent;
+    }
+  }, [isStreaming, streamingContent]);
+
   // Watch for AI stream finish and speak it aloud
   useEffect(() => {
     if (isStreaming) {
       setVoiceStatus('thinking');
     } else if (voiceStatus === 'thinking' && !isStreaming) {
-      const msgs = activeConversation?.messages || [];
-      const lastMsg = msgs[msgs.length - 1];
-      if (lastMsg && lastMsg.role === 'assistant' && lastMsg.content) {
-        setLastAiResponse(lastMsg.content);
-        speakResponse(lastMsg.content);
+      const textToSpeak = accumulatedStreamRef.current || '';
+      accumulatedStreamRef.current = '';
+
+      if (textToSpeak.trim()) {
+        setLastAiResponse(textToSpeak);
+        speakResponse(textToSpeak);
       } else {
-        setVoiceStatus('idle');
+        const msgs = activeConversation?.messages || [];
+        const lastMsg = msgs[msgs.length - 1];
+        if (lastMsg && lastMsg.role === 'assistant' && lastMsg.content) {
+          setLastAiResponse(lastMsg.content);
+          speakResponse(lastMsg.content);
+        } else {
+          setVoiceStatus('idle');
+        }
       }
     }
   }, [isStreaming]);
@@ -371,16 +388,24 @@ export const VoiceModeModal: React.FC = () => {
         </div>
 
         {/* Bottom Control Bar */}
-        <div className="flex items-center gap-3 text-xs text-slate-400">
+        <div className="flex flex-wrap items-center justify-center gap-2.5 text-xs text-slate-400">
+          <button
+            onClick={() => speakResponse('Hello Huzaifa! Local AI Studio voice assistant is online and working.')}
+            className="px-3.5 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-slate-300 font-medium flex items-center gap-1.5 cursor-pointer transition text-[11px]"
+          >
+            <Volume2 className="w-3.5 h-3.5 text-indigo-400" />
+            <span>Test Speaker</span>
+          </button>
+
           {voiceStatus === 'speaking' && (
             <button
               onClick={() => {
                 interruptSpeaking();
                 startListening();
               }}
-              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 font-medium flex items-center gap-2 cursor-pointer transition"
+              className="px-4 py-1.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/40 border border-rose-500/30 text-rose-300 font-medium flex items-center gap-1.5 cursor-pointer transition text-[11px]"
             >
-              <VolumeX className="w-3.5 h-3.5 text-rose-400" />
+              <VolumeX className="w-3.5 h-3.5" />
               <span>Interrupt & Speak</span>
             </button>
           )}
@@ -391,9 +416,14 @@ export const VoiceModeModal: React.FC = () => {
                 if (isListening) stopListening();
                 else startListening();
               }}
-              className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 font-medium cursor-pointer transition"
+              className={`px-4 py-1.5 rounded-xl border text-xs font-medium cursor-pointer transition flex items-center gap-1.5 ${
+                isListening
+                  ? 'bg-blue-600 border-blue-500 text-white shadow-lg'
+                  : 'bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-200'
+              }`}
             >
-              {isListening ? 'Mute Mic' : 'Start Listening'}
+              <Mic className="w-3.5 h-3.5" />
+              <span>{isListening ? 'Microphone Active' : 'Start Listening'}</span>
             </button>
           )}
         </div>

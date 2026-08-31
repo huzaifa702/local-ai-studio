@@ -1,33 +1,37 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, 
-  User, 
-  Lock, 
   Mail, 
   Check, 
   ShieldCheck,
   AlertCircle,
-  Key
+  KeyRound,
+  ArrowRight,
+  RefreshCw,
+  Sparkles,
+  User
 } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
 import { api } from '../../services/api';
 
 export const AuthModal: React.FC = () => {
-  const { activeModal, setActiveModal, setUser, user } = useAppStore();
+  const { activeModal, setActiveModal, setUser } = useAppStore();
 
-  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [otpStep, setOtpStep] = useState<'input_email' | 'enter_otp'>('input_email');
+  const [otpCode, setOtpCode] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [countdown, setCountdown] = useState(0);
 
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
-  if (activeModal !== 'auth') return null;
-
-  // Initialize official Google Identity Services button if available
+  // Initialize official Google Identity Services button
   useEffect(() => {
+    if (activeModal !== 'auth') return;
+
     const google = (window as any).google;
     if (google?.accounts?.id && googleBtnRef.current) {
       try {
@@ -64,23 +68,58 @@ export const AuthModal: React.FC = () => {
     }
   }, [activeModal]);
 
-  const handleEmailSubmit = async (e: React.FormEvent) => {
+  // Countdown timer for OTP resend
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
+
+  if (activeModal !== 'auth') return null;
+
+  // Handle Step 1: Send 6-digit OTP
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email.trim() || !email.includes('@')) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
     setError(null);
     setLoading(true);
-
     try {
-      if (isLogin) {
-        const u = await api.loginEmail(email.trim(), password);
-        setUser(u);
-        setActiveModal(null);
-      } else {
-        const u = await api.registerEmail(email.trim(), password, displayName.trim());
-        setUser(u);
-        setActiveModal(null);
-      }
+      const res = await api.sendEmailOtp(email.trim().toLowerCase());
+      setOtpStep('enter_otp');
+      setSuccessMsg(`6-digit code generated for ${email}. (Code: ${res.otpCode || 'Check terminal'})`);
+      setCountdown(60);
     } catch (err: any) {
-      setError(err.message || 'Authentication error');
+      setError(err.message || 'Failed to send OTP code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle Step 2: Verify 6-digit OTP
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (otpCode.trim().length !== 6) {
+      setError('Please enter the complete 6-digit verification code.');
+      return;
+    }
+
+    setError(null);
+    setLoading(true);
+    try {
+      const u = await api.verifyEmailOtp(
+        email.trim().toLowerCase(),
+        otpCode.trim(),
+        displayName.trim() || undefined
+      );
+      setUser(u);
+      setActiveModal(null);
+    } catch (err: any) {
+      setError(err.message || 'Invalid or expired OTP code.');
     } finally {
       setLoading(false);
     }
@@ -92,132 +131,187 @@ export const AuthModal: React.FC = () => {
         {/* Top Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)] bg-[var(--bg-main)]">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-bold text-xs shadow-md">
-              ✦
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-500 flex items-center justify-center shadow-md">
+              <Sparkles className="w-4 h-4 text-white" />
             </div>
-            <span className="text-sm font-bold text-[var(--text-primary)]">
-              {isLogin ? 'Sign In to Your Account' : 'Create an Account'}
-            </span>
+            <div>
+              <h2 className="text-sm font-bold text-[var(--text-primary)]">Welcome to LocalAI Studio</h2>
+              <p className="text-[11px] text-[var(--text-muted)]">Sign in or create your local account</p>
+            </div>
           </div>
           <button
             onClick={() => setActiveModal(null)}
-            className="p-1.5 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-sidebar-hover)] transition cursor-pointer"
+            className="p-2 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-sidebar-hover)] transition cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Modal Content */}
-        <div className="p-6 space-y-4">
+        {/* Modal Body */}
+        <div className="p-6 space-y-5">
           {/* Error Message */}
           {error && (
-            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{error}</span>
+            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-start gap-2 animate-in fade-in">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span className="text-xs leading-relaxed">{error}</span>
             </div>
           )}
 
-          {/* Real Google Identity Services Button Container */}
-          <div className="flex flex-col items-center justify-center pt-1 pb-1">
-            <div ref={googleBtnRef} className="min-h-[40px] flex items-center justify-center" />
+          {/* Success Message */}
+          {successMsg && !error && (
+            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-start gap-2 animate-in fade-in">
+              <Check className="w-4 h-4 shrink-0 mt-0.5" />
+              <span className="text-xs leading-relaxed font-mono">{successMsg}</span>
+            </div>
+          )}
+
+          {/* ------------------------------------------------------------- */}
+          {/* OPTION 1: 1-Click Real Google Sign-In */}
+          {/* ------------------------------------------------------------- */}
+          <div className="space-y-2.5">
+            <div className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+              Option 1: Google Account
+            </div>
+            <div className="flex justify-center py-1">
+              <div ref={googleBtnRef} className="min-h-[44px] flex items-center justify-center" />
+            </div>
           </div>
 
-          <div className="flex items-center gap-3 my-2 text-[var(--text-muted)]">
-            <div className="flex-1 h-px bg-[var(--border-subtle)]" />
-            <span className="text-[10px] uppercase font-bold tracking-wider">or continue with email</span>
-            <div className="flex-1 h-px bg-[var(--border-subtle)]" />
+          {/* Divider */}
+          <div className="flex items-center gap-3 py-1">
+            <div className="h-[1px] flex-1 bg-[var(--border-subtle)]" />
+            <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] tracking-wider">
+              Or with Email OTP
+            </span>
+            <div className="h-[1px] flex-1 bg-[var(--border-subtle)]" />
           </div>
 
-          {/* Real Email & Password Form */}
-          <form onSubmit={handleEmailSubmit} className="space-y-3.5">
-            {!isLogin && (
+          {/* ------------------------------------------------------------- */}
+          {/* OPTION 2: Real 6-Digit Email OTP Sign-Up / Sign-In */}
+          {/* ------------------------------------------------------------- */}
+          {otpStep === 'input_email' ? (
+            <form onSubmit={handleSendOtp} className="space-y-3">
               <div>
-                <label className="block text-[var(--text-primary)] font-semibold mb-1">Your Full Name</label>
+                <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
+                  Email Address *
+                </label>
                 <div className="relative">
-                  <User className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                  <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
                   <input
-                    type="text"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="Huzaifa Rajput"
-                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border-medium)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-emerald-500"
-                    required={!isLogin}
+                    type="email"
+                    placeholder="name@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border-subtle)] text-[var(--text-primary)] placeholder-[var(--text-muted)] text-xs focus:border-indigo-500 focus:outline-none"
                   />
                 </div>
               </div>
-            )}
 
-            <div>
-              <label className="block text-[var(--text-primary)] font-semibold mb-1">Email Address *</label>
-              <div className="relative">
-                <Mail className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="huzaifa@example.com"
-                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border-medium)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-emerald-500"
-                  required
-                />
+              <div>
+                <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
+                  Display Name (Optional)
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                  <input
+                    type="text"
+                    placeholder="Your Name (e.g. Alex, Huzaifa)"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border-subtle)] text-[var(--text-primary)] placeholder-[var(--text-muted)] text-xs focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
               </div>
-            </div>
 
-            <div>
-              <label className="block text-[var(--text-primary)] font-semibold mb-1">Password *</label>
-              <div className="relative">
-                <Lock className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border-medium)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-emerald-500"
-                  required
-                />
+              <button
+                type="submit"
+                disabled={loading || !email.trim()}
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 disabled:opacity-50 text-white font-semibold text-xs transition shadow-md flex items-center justify-center gap-2 cursor-pointer mt-2"
+              >
+                {loading ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <span>Send 6-Digit Code</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleVerifyOtp} className="space-y-3 animate-in fade-in">
+              <div className="flex items-center justify-between text-[11px] text-[var(--text-muted)]">
+                <span>Code sent to: <strong className="text-[var(--text-primary)]">{email}</strong></span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOtpStep('input_email');
+                    setOtpCode('');
+                    setError(null);
+                    setSuccessMsg(null);
+                  }}
+                  className="text-indigo-400 hover:underline cursor-pointer"
+                >
+                  Change Email
+                </button>
               </div>
-              <p className="text-[10px] text-[var(--text-muted)] mt-1">Minimum 6 characters with secure salted hash.</p>
-            </div>
 
-            <button
-              type="submit"
-              disabled={loading || !email || !password}
-              className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold shadow-md transition cursor-pointer mt-2"
-            >
-              {loading ? 'Processing...' : isLogin ? 'Sign In' : 'Create Account'}
-            </button>
+              <div>
+                <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
+                  Enter 6-Digit Verification Code *
+                </label>
+                <div className="relative">
+                  <KeyRound className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-indigo-400" />
+                  <input
+                    type="text"
+                    maxLength={6}
+                    placeholder="123456"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                    autoFocus
+                    required
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-indigo-500/50 text-[var(--text-primary)] text-center tracking-[0.3em] font-mono text-base font-bold focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+              </div>
 
-            <div className="text-center pt-2 text-[var(--text-muted)]">
-              {isLogin ? (
-                <span>
-                  Don't have an account?{' '}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsLogin(false);
-                      setError(null);
-                    }}
-                    className="text-emerald-400 hover:text-emerald-300 font-semibold cursor-pointer underline ml-1"
-                  >
-                    Sign up
-                  </button>
+              <div className="flex items-center justify-between text-[11px] pt-1">
+                <span className="text-[var(--text-muted)]">
+                  {countdown > 0 ? `Resend in ${countdown}s` : "Didn't receive code?"}
                 </span>
-              ) : (
-                <span>
-                  Already have an account?{' '}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsLogin(true);
-                      setError(null);
-                    }}
-                    className="text-emerald-400 hover:text-emerald-300 font-semibold cursor-pointer underline ml-1"
-                  >
-                    Sign in
-                  </button>
-                </span>
-              )}
-            </div>
-          </form>
+                <button
+                  type="button"
+                  disabled={countdown > 0 || loading}
+                  onClick={handleSendOtp}
+                  className="text-indigo-400 disabled:opacity-40 hover:underline cursor-pointer font-medium"
+                >
+                  Resend Code
+                </button>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || otpCode.trim().length !== 6}
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white font-semibold text-xs transition shadow-md flex items-center justify-center gap-2 cursor-pointer mt-2"
+              >
+                {loading ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    <span>Verify & Sign In</span>
+                  </>
+                )}
+              </button>
+            </form>
+          )}
+
+          {/* Privacy Footnote */}
+          <div className="pt-2 flex items-center justify-center gap-1.5 text-[10px] text-[var(--text-muted)]">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+            <span>Encrypted local database on your SSD. 100% private.</span>
+          </div>
         </div>
       </div>
     </div>

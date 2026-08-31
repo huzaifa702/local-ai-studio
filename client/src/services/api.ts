@@ -78,6 +78,34 @@ export const api = {
     return data;
   },
 
+  async sendEmailOtp(email: string): Promise<{ success: boolean; message: string; otpCode?: string }> {
+    const res = await fetch(`${API_BASE}/auth/email/send-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Failed to send OTP code' }));
+      throw new Error(err.detail || 'Failed to send OTP code');
+    }
+    return res.json();
+  },
+
+  async verifyEmailOtp(email: string, otpCode: string, displayName?: string): Promise<UserProfile> {
+    const res = await fetch(`${API_BASE}/auth/email/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otpCode, displayName })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Invalid or expired OTP code' }));
+      throw new Error(err.detail || 'Invalid or expired OTP code');
+    }
+    const data = await res.json();
+    if (data.token) localStorage.setItem('localai_token', data.token);
+    return data;
+  },
+
   async sendPhoneOtp(phoneNumber: string): Promise<{ success: boolean; sessionId: string; message: string; demoOtp?: string }> {
     const res = await fetch(`${API_BASE}/auth/phone/send-otp`, {
       method: 'POST',
