@@ -297,7 +297,7 @@ export const Sidebar: React.FC = () => {
               <button
                 onClick={() => {
                   setProfileMenuOpen(false);
-                  setActiveModal('auth');
+                  setActiveModal('profile');
                 }}
                 className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[var(--text-main)] hover:bg-[var(--bg-sidebar-hover)] transition cursor-pointer text-left font-normal"
               >

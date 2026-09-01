@@ -25,7 +25,7 @@ interface AppState {
 
   // Navigation & Modals
   sidebarOpen: boolean;
-  activeModal: 'models' | 'memory' | 'projects' | 'settings' | 'voice' | 'auth' | 'commandPalette' | null;
+  activeModal: 'models' | 'memory' | 'projects' | 'settings' | 'voice' | 'auth' | 'commandPalette' | 'profile' | null;
   searchQuery: string;
 
   // Models

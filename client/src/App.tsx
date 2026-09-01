@@ -10,6 +10,7 @@ import { VoiceModeModal } from './components/modals/VoiceModeModal';
 import { SettingsModal } from './components/modals/SettingsModal';
 import { AuthModal } from './components/modals/AuthModal';
 import { CommandPalette } from './components/modals/CommandPalette';
+import { ProfileModal } from './components/modals/ProfileModal';
 
 export const App: React.FC = () => {
   const { 
@@ -85,6 +86,7 @@ export const App: React.FC = () => {
       <VoiceModeModal />
       <SettingsModal />
       <AuthModal />
+      <ProfileModal />
       <CommandPalette />
     </div>
   );
