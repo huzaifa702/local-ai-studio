@@ -32,8 +32,6 @@ export const VoiceModeModal: React.FC = () => {
   const recognitionRef = useRef<any>(null);
   const silenceTimerRef = useRef<any>(null);
 
-  if (activeModal !== 'voice') return null;
-
   // Interruption Helper: Halts TTS audio playback instantly
   const interruptSpeaking = () => {
     if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
@@ -158,6 +156,7 @@ export const VoiceModeModal: React.FC = () => {
 
   // Keyboard Spacebar listener for Push-to-Talk
   useEffect(() => {
+    if (activeModal !== 'voice') return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' && mode === 'pushtotalk' && !isHoldingPtt) {
         e.preventDefault();
@@ -178,19 +177,21 @@ export const VoiceModeModal: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [mode, isHoldingPtt, transcript]);
+  }, [activeModal, mode, isHoldingPtt, transcript]);
 
   const accumulatedStreamRef = useRef<string>('');
 
   // Keep track of streaming content
   useEffect(() => {
+    if (activeModal !== 'voice') return;
     if (isStreaming && streamingContent) {
       accumulatedStreamRef.current = streamingContent;
     }
-  }, [isStreaming, streamingContent]);
+  }, [activeModal, isStreaming, streamingContent]);
 
   // Watch for AI stream finish and speak it aloud
   useEffect(() => {
+    if (activeModal !== 'voice') return;
     if (isStreaming) {
       setVoiceStatus('thinking');
     } else if (voiceStatus === 'thinking' && !isStreaming) {
@@ -211,7 +212,7 @@ export const VoiceModeModal: React.FC = () => {
         }
       }
     }
-  }, [isStreaming]);
+  }, [activeModal, isStreaming]);
 
   const speakResponse = (text: string) => {
     if (!('speechSynthesis' in window)) {
@@ -247,6 +248,8 @@ export const VoiceModeModal: React.FC = () => {
     interruptSpeaking();
     setActiveModal(null);
   };
+
+  if (activeModal !== 'voice') return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95 backdrop-blur-2xl animate-in fade-in select-none">
