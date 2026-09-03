@@ -152,10 +152,10 @@ async def send_email_otp(req: EmailOtpSendRequest):
         await db.commit()
 
         # Display OTP in terminal banner for verified local execution
-        print(f"\n=======================================================")
-        print(f" 📩 [EMAIL OTP GENERATOR] Code for: {email}")
-        print(f" 🔑 OTP Code: {otp_code} (Valid for 10 minutes)")
-        print(f"=======================================================\n")
+        print("\n=======================================================")
+        print(f" [EMAIL OTP GENERATOR] Code for: {email}")
+        print(f" OTP Code: {otp_code} (Valid for 10 minutes)")
+        print("=======================================================\n")
 
         return {
             "success": True,

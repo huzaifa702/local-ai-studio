@@ -69,12 +69,12 @@ export const App: React.FC = () => {
   }, [settings.theme]);
 
   return (
-    <div className="app-root flex h-screen w-screen bg-[#080c14] text-slate-100 overflow-hidden font-sans antialiased">
+    <div className="app-root flex h-screen w-screen bg-[var(--bg-main)] text-[var(--text-main)] overflow-hidden font-sans antialiased">
       {/* Sidebar Navigation */}
       <Sidebar />
 
       {/* Main Content Area */}
-      <div className="main-content flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-[#080c14] relative">
+      <div className="main-content flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-[var(--bg-main)] relative">
         <Header />
         <ChatContainer />
       </div>

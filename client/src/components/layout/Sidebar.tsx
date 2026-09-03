@@ -21,7 +21,11 @@ import {
   Sparkles,
   Zap,
   ChevronRight,
-  HelpCircle
+  HelpCircle,
+  Plus,
+  Boxes,
+  Code2,
+  Sliders
 } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
 import type { Conversation } from '../../types';
@@ -122,100 +126,60 @@ export const Sidebar: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Navigation Actions (Matching Screenshot 1) */}
+      {/* Main Navigation Actions (Matching Claude Screenshot 1) */}
       <div className="px-2 space-y-0.5">
+        {/* + New Button */}
         <button
           onClick={() => createNewChat()}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] font-medium text-xs transition cursor-pointer"
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] font-medium text-xs transition cursor-pointer"
         >
-          <SquarePen className="w-4 h-4 text-[var(--text-sub)]" />
-          <span>New chat</span>
-        </button>
-
-        {/* Images / Vision Mode */}
-        <button
-          onClick={() => {
-            setSelectedModel('moondream:latest', 'ollama');
-            createNewChat();
-          }}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] font-medium text-xs transition cursor-pointer"
-        >
-          <ImageIcon className="w-4 h-4 text-[var(--text-sub)]" />
-          <span>Images</span>
-        </button>
-
-        {/* Library / Saved Chats */}
-        <button
-          onClick={() => setActiveModal('memory')}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] font-medium text-xs transition cursor-pointer"
-        >
-          <BookMarked className="w-4 h-4 text-[var(--text-sub)]" />
-          <span>Library</span>
-        </button>
-
-        {/* Scheduled Tasks */}
-        <button
-          onClick={() => setActiveModal('commandPalette')}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] font-medium text-xs transition cursor-pointer"
-        >
-          <Clock className="w-4 h-4 text-[var(--text-sub)]" />
-          <span>Scheduled</span>
+          <Plus className="w-4 h-4 text-[var(--text-sub)]" />
+          <span className="font-semibold">New</span>
         </button>
 
         {/* Projects */}
         <button
           onClick={() => setActiveModal('projects')}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] font-medium text-xs transition cursor-pointer"
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] font-medium text-xs transition cursor-pointer"
         >
           <FolderGit2 className="w-4 h-4 text-[var(--text-sub)]" />
           <span>Projects</span>
         </button>
 
-        {/* ... More Menu */}
-        <div className="relative" ref={moreRef}>
-          <button
-            onClick={() => setMoreMenuOpen(!moreMenuOpen)}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] font-medium text-xs transition cursor-pointer"
-          >
-            <MoreHorizontal className="w-4 h-4 text-[var(--text-sub)]" />
-            <span>More</span>
-          </button>
+        {/* Artifacts */}
+        <button
+          onClick={() => setActiveModal('memory')}
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] font-medium text-xs transition cursor-pointer"
+        >
+          <Boxes className="w-4 h-4 text-[var(--text-sub)]" />
+          <span>Artifacts</span>
+        </button>
 
-          {moreMenuOpen && (
-            <div className="absolute left-4 bottom-10 w-52 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-medium)] shadow-2xl p-1.5 z-40 text-xs animate-in fade-in space-y-0.5">
-              <button
-                onClick={() => {
-                  setMoreMenuOpen(false);
-                  setActiveModal('models');
-                }}
-                className="w-full text-left px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] flex items-center gap-2.5 transition cursor-pointer"
-              >
-                <Cpu className="w-4 h-4 text-indigo-400" />
-                <span>Models Hub</span>
-              </button>
-              <button
-                onClick={() => {
-                  setMoreMenuOpen(false);
-                  setActiveModal('memory');
-                }}
-                className="w-full text-left px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] flex items-center gap-2.5 transition cursor-pointer"
-              >
-                <Brain className="w-4 h-4 text-purple-400" />
-                <span>Memory & Context</span>
-              </button>
-              <button
-                onClick={() => {
-                  setMoreMenuOpen(false);
-                  setActiveModal('settings');
-                }}
-                className="w-full text-left px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] flex items-center gap-2.5 transition cursor-pointer"
-              >
-                <SettingsIcon className="w-4 h-4 text-[var(--text-muted)]" />
-                <span>Settings</span>
-              </button>
-            </div>
-          )}
-        </div>
+        {/* Code */}
+        <button
+          onClick={() => {
+            setSelectedModel('qwen2.5-coder:7b', 'ollama');
+            createNewChat();
+          }}
+          className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] font-medium text-xs transition cursor-pointer"
+        >
+          <div className="flex items-center gap-2.5">
+            <Code2 className="w-4 h-4 text-[var(--text-sub)]" />
+            <span>Code</span>
+          </div>
+          <span className="px-1.5 py-0.2 rounded-full bg-indigo-500/10 text-indigo-400 text-[9px] font-semibold border border-indigo-500/20">
+            Qwen Pro
+          </span>
+        </button>
+
+        {/* Customize */}
+        <button
+          onClick={() => setActiveModal('settings')}
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] font-medium text-xs transition cursor-pointer"
+        >
+          <Sliders className="w-4 h-4 text-[var(--text-sub)]" />
+          <span>Customize</span>
+        </button>
       </div>
 
       {/* Pinned Section */}

@@ -58,9 +58,17 @@ export const ChatContainer: React.FC = () => {
         {messages.length === 0 && !isStreaming ? (
           /* Exact Home Screen Layout matching User Screenshots */
           <div className="max-w-2xl w-full mx-auto px-4 my-auto flex flex-col items-center justify-center text-center space-y-6 animate-in fade-in pb-12">
-            <h1 className="text-3xl sm:text-4xl font-medium text-[var(--text-main)] tracking-tight">
-              {user ? "What’s on your mind today?" : "Where should we begin?"}
-            </h1>
+            {/* Claude Asterisk Starburst Logo + "You're here!" (Exact Screenshot 1 Match) */}
+            <div className="flex items-center gap-3 justify-center mb-1">
+              <div className="w-8 h-8 text-[#d97757] flex items-center justify-center">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8">
+                  <path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M4.93 19.07L19.07 4.93" />
+                </svg>
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-serif font-normal text-[var(--text-main)] tracking-tight">
+                You're here!
+              </h1>
+            </div>
 
             {/* Centered Floating Input Box */}
             <div className="w-full">
