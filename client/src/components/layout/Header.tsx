@@ -105,9 +105,11 @@ export const Header: React.FC = () => {
 
           {/* Single Unified OX-Alpha Super-Model Pill */}
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[var(--bg-sidebar-hover)] border border-[var(--border-subtle)] text-[var(--text-main)]">
-            <div className="w-5 h-5 rounded-md bg-gradient-to-tr from-indigo-500 to-blue-500 flex items-center justify-center text-white text-[10px] font-black shadow-sm">
-              OX
-            </div>
+            <img 
+              src="/assets/guts-logo.png" 
+              alt="Guts AI" 
+              className="w-5 h-5 rounded-md object-cover shadow-sm ring-1 ring-red-500/20" 
+            />
             <div className="flex items-center gap-1.5 font-semibold text-sm tracking-tight">
               <span>OX-Alpha</span>
               <span className="hidden sm:inline-block px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 text-[9px] font-bold border border-indigo-500/20">
@@ -231,7 +233,21 @@ export const Header: React.FC = () => {
                 )}
               </div>
             </>
-          ) : !user ? (
+          ) : user ? (
+            /* Logged in user avatar pill on top right */
+            <button
+              onClick={() => setActiveModal('profile')}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--bg-sidebar-hover)] hover:bg-[var(--border-subtle)] border border-[var(--border-subtle)] text-xs transition cursor-pointer"
+              title="View Profile & Settings"
+            >
+              <div className="w-6 h-6 rounded-full bg-amber-700 text-white font-bold text-[10px] flex items-center justify-center shadow-sm">
+                {(user.displayName || user.username).slice(0, 2).toUpperCase()}
+              </div>
+              <span className="font-semibold text-[var(--text-main)] max-w-[130px] truncate">
+                {user.displayName || user.username.split('@')[0]}
+              </span>
+            </button>
+          ) : (
             /* Logged out guest view */
             <div className="flex items-center gap-2">
               <button
@@ -247,7 +263,7 @@ export const Header: React.FC = () => {
                 Sign up for free
               </button>
             </div>
-          ) : null}
+          )}
         </div>
       </header>
 

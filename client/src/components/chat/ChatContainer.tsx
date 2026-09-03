@@ -56,17 +56,17 @@ export const ChatContainer: React.FC = () => {
         className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col"
       >
         {messages.length === 0 && !isStreaming ? (
-          /* Exact Home Screen Layout matching User Screenshots */
+          /* Exact Home Screen Layout matching User Request: Guts Anime Logo + Personalized Greeting */
           <div className="max-w-2xl w-full mx-auto px-4 my-auto flex flex-col items-center justify-center text-center space-y-6 animate-in fade-in pb-12">
-            {/* Claude Asterisk Starburst Logo + "You're here!" (Exact Screenshot 1 Match) */}
-            <div className="flex items-center gap-3 justify-center mb-1">
-              <div className="w-8 h-8 text-[#d97757] flex items-center justify-center">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8">
-                  <path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M4.93 19.07L19.07 4.93" />
-                </svg>
-              </div>
-              <h1 className="text-3xl sm:text-4xl font-serif font-normal text-[var(--text-main)] tracking-tight">
-                You're here!
+            {/* Guts Anime Character Logo & Personalized Greeting */}
+            <div className="flex items-center gap-3.5 justify-center mb-1">
+              <img 
+                src="/assets/guts-logo.png" 
+                alt="Guts AI" 
+                className="w-10 h-10 rounded-2xl object-cover shadow-lg ring-1 ring-red-500/30"
+              />
+              <h1 className="text-3xl sm:text-4xl font-serif font-medium text-[var(--text-main)] tracking-tight">
+                {user ? `Good ${new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, ${user.displayName || user.username.split('@')[0]}` : "Where should we begin?"}
               </h1>
             </div>
 

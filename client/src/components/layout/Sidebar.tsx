@@ -102,11 +102,13 @@ export const Sidebar: React.FC = () => {
     >
       {/* Sidebar Top Header: Guts AI Branding */}
       <div className="p-3 flex items-center justify-between">
-        <div className="flex items-center gap-2 font-bold text-sm text-[var(--text-main)] px-2">
-          <div className="w-5 h-5 rounded-md bg-gradient-to-tr from-indigo-500 to-blue-500 flex items-center justify-center text-white text-[10px]">
-            G
-          </div>
-          <span>Guts AI</span>
+        <div className="flex items-center gap-2.5 font-bold text-sm text-[var(--text-main)] px-2">
+          <img 
+            src="/assets/guts-logo.png" 
+            alt="Guts AI" 
+            className="w-5 h-5 rounded-md object-cover shadow-sm ring-1 ring-red-500/20" 
+          />
+          <span className="tracking-tight">Guts AI</span>
         </div>
         <div className="flex items-center gap-1">
           <button

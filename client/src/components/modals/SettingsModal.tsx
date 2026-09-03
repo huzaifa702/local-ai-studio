@@ -18,7 +18,8 @@ import {
   Box, 
   Info, 
   CornerDownLeft, 
-  Sparkles
+  Sparkles,
+  Check
 } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
 import { api } from '../../services/api';
@@ -29,19 +30,59 @@ export const SettingsModal: React.FC = () => {
     setActiveModal, 
     clearAllConversations,
     user,
-    logout
+    logout,
+    settings,
+    updateSettings,
+    conversations
   } = useAppStore();
 
   const [activeTab, setActiveTab] = useState<string>('general');
   const [searchFilter, setSearchFilter] = useState('');
 
-  // 1. General Tab States
-  const [appearance, setAppearance] = useState<'Dark' | 'Light' | 'System'>('Dark');
-  const [contrast, setContrast] = useState<'Default' | 'Increased'>('Increased');
-  const [accentColor, setAccentColor] = useState<'Purple' | 'Indigo' | 'Emerald' | 'Blue' | 'Amber'>('Purple');
-  const [language, setLanguage] = useState<'Auto-detect' | 'English' | 'Urdu' | 'Spanish'>('Auto-detect');
-  const [higherIntelligence, setHigherIntelligence] = useState(true);
-  const [enableDictation, setEnableDictation] = useState(true);
+  // 1. General Tab States synced with store
+  const [appearance, setAppearance] = useState<'Dark' | 'Light' | 'System'>(
+    settings.theme === 'light' ? 'Light' : settings.theme === 'system' ? 'System' : 'Dark'
+  );
+  const [contrast, setContrast] = useState<'Default' | 'Increased'>(settings.contrast || 'Default');
+  const [accentColor, setAccentColor] = useState<'Purple' | 'Indigo' | 'Emerald' | 'Blue' | 'Amber'>(
+    (settings.accentColor as any) || 'Purple'
+  );
+  const [language, setLanguage] = useState<'Auto-detect' | 'English' | 'Urdu' | 'Spanish'>(
+    (settings.language as any) || 'Auto-detect'
+  );
+  const [higherIntelligence, setHigherIntelligence] = useState(settings.higherIntelligence ?? true);
+  const [enableDictation, setEnableDictation] = useState(settings.enableDictation ?? true);
+
+  // Handlers for General Tab
+  const handleAppearanceChange = (val: 'Dark' | 'Light' | 'System') => {
+    setAppearance(val);
+    updateSettings({ theme: val.toLowerCase() as any });
+  };
+
+  const handleContrastChange = (val: 'Default' | 'Increased') => {
+    setContrast(val);
+    updateSettings({ contrast: val });
+  };
+
+  const handleAccentColorChange = (val: 'Purple' | 'Indigo' | 'Emerald' | 'Blue' | 'Amber') => {
+    setAccentColor(val);
+    updateSettings({ accentColor: val });
+  };
+
+  const handleLanguageChange = (val: any) => {
+    setLanguage(val);
+    updateSettings({ language: val });
+  };
+
+  const handleHigherIntelligenceChange = (val: boolean) => {
+    setHigherIntelligence(val);
+    updateSettings({ higherIntelligence: val });
+  };
+
+  const handleEnableDictationChange = (val: boolean) => {
+    setEnableDictation(val);
+    updateSettings({ enableDictation: val });
+  };
 
   // 2. Notification Tab States
   const [taskNotifications, setTaskNotifications] = useState(true);
@@ -55,8 +96,15 @@ export const SettingsModal: React.FC = () => {
   const [emojiLevel, setEmojiLevel] = useState('Default');
   const [fastAnswers, setFastAnswers] = useState(true);
   const [customInstructions, setCustomInstructions] = useState(
-    'Clear reasoning, and actionable feedback. Think and respond like a no-nonsense coach or a brutal friend who is focused on making me better. Push back whenever necessary, and never feed sugarcoated advice.'
+    settings.systemPrompt || 'Clear reasoning, and actionable feedback. Think and respond like a no-nonsense coach or a brutal friend who is focused on making me better. Push back whenever necessary, and never feed sugarcoated advice.'
   );
+  const [instructionsSaved, setInstructionsSaved] = useState(false);
+
+  const handleSaveInstructions = async () => {
+    await updateSettings({ systemPrompt: customInstructions });
+    setInstructionsSaved(true);
+    setTimeout(() => setInstructionsSaved(false), 2500);
+  };
 
   // 4. Voice Tab States
   const voices = [
@@ -69,6 +117,38 @@ export const SettingsModal: React.FC = () => {
   const [currentVoiceIdx, setCurrentVoiceIdx] = useState(0);
   const [voiceModel, setVoiceModel] = useState('Live');
   const [voiceLang, setVoiceLang] = useState('Auto-detect');
+
+  const playVoiceSample = (name: string) => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(`Hello, I'm ${name}, your voice assistant on Guts AI.`);
+      u.rate = 1.05;
+      window.speechSynthesis.speak(u);
+    }
+  };
+
+  const handleVoiceChange = (idx: number) => {
+    setCurrentVoiceIdx(idx);
+    const v = voices[idx];
+    updateSettings({ voiceVoice: v.name.toLowerCase() });
+    playVoiceSample(v.name);
+  };
+
+  const handleExportData = () => {
+    const data = {
+      exportedAt: new Date().toISOString(),
+      user,
+      settings,
+      conversations
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `guts_ai_backup_${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   // 5. Storage Tab States
   const [storageUsed] = useState('3.51 MB of 512 MB used');
@@ -213,7 +293,7 @@ export const SettingsModal: React.FC = () => {
                     <span className="text-xs text-[#e5e7eb]">Appearance</span>
                     <select
                       value={appearance}
-                      onChange={(e) => setAppearance(e.target.value as any)}
+                      onChange={(e) => handleAppearanceChange(e.target.value as any)}
                       className="px-3 py-1.5 rounded-xl bg-[#262626] border border-[#383838] text-xs text-white focus:outline-none cursor-pointer"
                     >
                       <option value="Dark">Dark</option>
@@ -227,7 +307,7 @@ export const SettingsModal: React.FC = () => {
                     <span className="text-xs text-[#e5e7eb]">Contrast</span>
                     <select
                       value={contrast}
-                      onChange={(e) => setContrast(e.target.value as any)}
+                      onChange={(e) => handleContrastChange(e.target.value as any)}
                       className="px-3 py-1.5 rounded-xl bg-[#262626] border border-[#383838] text-xs text-white focus:outline-none cursor-pointer"
                     >
                       <option value="Default">Default</option>
@@ -240,7 +320,7 @@ export const SettingsModal: React.FC = () => {
                     <span className="text-xs text-[#e5e7eb]">Accent color</span>
                     <select
                       value={accentColor}
-                      onChange={(e) => setAccentColor(e.target.value as any)}
+                      onChange={(e) => handleAccentColorChange(e.target.value as any)}
                       className="px-3 py-1.5 rounded-xl bg-[#262626] border border-[#383838] text-xs text-white focus:outline-none cursor-pointer"
                     >
                       <option value="Purple">🟣 Purple</option>
@@ -256,7 +336,7 @@ export const SettingsModal: React.FC = () => {
                     <span className="text-xs text-[#e5e7eb]">Language</span>
                     <select
                       value={language}
-                      onChange={(e) => setLanguage(e.target.value as any)}
+                      onChange={(e) => handleLanguageChange(e.target.value)}
                       className="px-3 py-1.5 rounded-xl bg-[#262626] border border-[#383838] text-xs text-white focus:outline-none cursor-pointer"
                     >
                       <option value="Auto-detect">Auto-detect</option>
@@ -271,13 +351,13 @@ export const SettingsModal: React.FC = () => {
                     <div>
                       <div className="text-xs text-[#e5e7eb]">Higher intelligence</div>
                       <div className="text-[11px] text-[#737373]">
-                        ChatGPT can automatically use a higher intelligence setting when you ask a complex question.
+                        Guts AI automatically selects the optimal reasoning model when you ask a complex question.
                       </div>
                     </div>
                     <input
                       type="checkbox"
                       checked={higherIntelligence}
-                      onChange={(e) => setHigherIntelligence(e.target.checked)}
+                      onChange={(e) => handleHigherIntelligenceChange(e.target.checked)}
                       className="w-4 h-4 accent-blue-500 cursor-pointer"
                     />
                   </div>
@@ -293,7 +373,7 @@ export const SettingsModal: React.FC = () => {
                     <input
                       type="checkbox"
                       checked={enableDictation}
-                      onChange={(e) => setEnableDictation(e.target.checked)}
+                      onChange={(e) => handleEnableDictationChange(e.target.checked)}
                       className="w-4 h-4 accent-blue-500 cursor-pointer"
                     />
                   </div>
@@ -423,12 +503,22 @@ export const SettingsModal: React.FC = () => {
                 </div>
 
                 {/* Custom instructions */}
-                <div className="space-y-1.5 pt-1">
-                  <div className="font-semibold text-xs text-white">Custom instructions</div>
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <div className="font-semibold text-xs text-white">Custom instructions</div>
+                    <button
+                      onClick={handleSaveInstructions}
+                      className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs transition cursor-pointer flex items-center gap-1.5 shadow-sm"
+                    >
+                      {instructionsSaved ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Sparkles className="w-3.5 h-3.5" />}
+                      <span>{instructionsSaved ? 'Saved to System' : 'Save Instructions'}</span>
+                    </button>
+                  </div>
                   <textarea
                     value={customInstructions}
                     onChange={(e) => setCustomInstructions(e.target.value)}
                     rows={4}
+                    placeholder="Tell Guts AI how you would like it to respond..."
                     className="w-full p-3 rounded-2xl bg-[#0f0f0f] border border-[#2a2a2a] text-xs text-white focus:outline-none focus:border-[#444] resize-none leading-relaxed font-sans"
                   />
                 </div>
@@ -452,18 +542,24 @@ export const SettingsModal: React.FC = () => {
 
                   <div className="flex items-center justify-center gap-6 pt-1">
                     <button
-                      onClick={() => setCurrentVoiceIdx((currentVoiceIdx - 1 + voices.length) % voices.length)}
+                      onClick={() => handleVoiceChange((currentVoiceIdx - 1 + voices.length) % voices.length)}
                       className="p-2 rounded-full hover:bg-[#262626] text-[#a3a3a3] hover:text-white transition cursor-pointer"
+                      title="Previous voice"
                     >
                       <ChevronLeft className="w-5 h-5" />
                     </button>
-                    <div>
-                      <div className="font-bold text-base text-white">{voices[currentVoiceIdx].name}</div>
-                      <div className="text-xs text-[#737373]">{voices[currentVoiceIdx].desc}</div>
+                    <div 
+                      onClick={() => playVoiceSample(voices[currentVoiceIdx].name)}
+                      className="cursor-pointer group"
+                      title="Click to play sample"
+                    >
+                      <div className="font-bold text-base text-white group-hover:text-indigo-400 transition">{voices[currentVoiceIdx].name}</div>
+                      <div className="text-xs text-[#737373]">{voices[currentVoiceIdx].desc} (Click to preview)</div>
                     </div>
                     <button
-                      onClick={() => setCurrentVoiceIdx((currentVoiceIdx + 1) % voices.length)}
+                      onClick={() => handleVoiceChange((currentVoiceIdx + 1) % voices.length)}
                       className="p-2 rounded-full hover:bg-[#262626] text-[#a3a3a3] hover:text-white transition cursor-pointer"
+                      title="Next voice"
                     >
                       <ChevronRight className="w-5 h-5" />
                     </button>
@@ -577,7 +673,10 @@ export const SettingsModal: React.FC = () => {
                 {/* Export data */}
                 <div className="flex items-center justify-between py-2 border-b border-[#242424]">
                   <span className="text-xs text-[#e5e7eb]">Export data</span>
-                  <button className="px-3.5 py-1.5 rounded-xl bg-[#262626] hover:bg-[#333333] text-white text-xs border border-[#383838]">
+                  <button 
+                    onClick={handleExportData}
+                    className="px-3.5 py-1.5 rounded-xl bg-[#262626] hover:bg-[#333333] text-white text-xs border border-[#383838] transition cursor-pointer"
+                  >
                     Export
                   </button>
                 </div>

@@ -59,14 +59,33 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeModal, setActiveModal, createNewChat, sidebarOpen, setSidebarOpen]);
 
-  // Apply theme class to document
+  // Apply theme, contrast, and accent color to document
   useEffect(() => {
+    // 1. Theme
     if (settings.theme === 'light') {
       document.documentElement.classList.remove('dark');
     } else {
       document.documentElement.classList.add('dark');
     }
-  }, [settings.theme]);
+
+    // 2. Contrast
+    if (settings.contrast === 'Increased') {
+      document.documentElement.classList.add('contrast-increased');
+    } else {
+      document.documentElement.classList.remove('contrast-increased');
+    }
+
+    // 3. Accent Color
+    const accents: Record<string, string> = {
+      Purple: '#a855f7',
+      Indigo: '#6366f1',
+      Emerald: '#10b981',
+      Blue: '#3b82f6',
+      Amber: '#f59e0b'
+    };
+    const accent = accents[settings.accentColor || 'Purple'] || '#a855f7';
+    document.documentElement.style.setProperty('--accent-color', accent);
+  }, [settings.theme, settings.contrast, settings.accentColor]);
 
   return (
     <div className="app-root flex h-screen w-screen bg-[var(--bg-main)] text-[var(--text-main)] overflow-hidden font-sans antialiased">

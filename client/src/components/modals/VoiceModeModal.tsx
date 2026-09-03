@@ -42,6 +42,22 @@ export const VoiceModeModal: React.FC = () => {
     }
   };
 
+  // Auto-start listening when voice modal opens
+  useEffect(() => {
+    let mounted = true;
+    if (activeModal === 'voice') {
+      const timer = setTimeout(() => {
+        if (mounted) startListening();
+      }, 300);
+      return () => {
+        mounted = false;
+        clearTimeout(timer);
+        stopListening();
+        interruptSpeaking();
+      };
+    }
+  }, [activeModal]);
+
   // Start Speech Recognition
   const startListening = () => {
     // Interruption support: If AI is speaking, interrupt it instantly!
@@ -240,7 +256,7 @@ export const VoiceModeModal: React.FC = () => {
           <div className="flex items-center gap-2">
             <div className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-ping" />
             <span className="text-xs font-bold text-slate-300 tracking-wider uppercase">
-              ChatGPT Real-Time Voice
+              Guts AI Real-Time Voice
             </span>
           </div>
 

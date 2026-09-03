@@ -104,9 +104,9 @@ export const AuthModal: React.FC = () => {
     setError(null);
     setLoading(true);
     try {
-      const res = await api.sendEmailOtp(email.trim().toLowerCase());
+      await api.sendEmailOtp(email.trim().toLowerCase());
       setSignupStep('enter_otp');
-      setSuccessMsg(`6-digit code sent to ${email}. (Code: ${res.otpCode || 'Check terminal'})`);
+      setSuccessMsg(`6-digit verification code sent to ${email}. Please check your email inbox.`);
       setCountdown(60);
     } catch (err: any) {
       setError(err.message || 'Failed to send OTP code.');
@@ -189,9 +189,9 @@ export const AuthModal: React.FC = () => {
     setError(null);
     setLoading(true);
     try {
-      const res = await api.sendEmailOtp(email.trim().toLowerCase());
+      await api.sendEmailOtp(email.trim().toLowerCase());
       setForgotStep('enter_otp');
-      setSuccessMsg(`Reset code sent to ${email}. (Code: ${res.otpCode || 'Check terminal'})`);
+      setSuccessMsg(`Reset code sent to ${email}. Please check your email inbox.`);
       setCountdown(60);
     } catch (err: any) {
       setError(err.message || 'Failed to send OTP code.');

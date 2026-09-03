@@ -128,6 +128,11 @@ export interface ApiKeys {
 
 export interface UserSettings {
   theme: 'dark' | 'light' | 'system';
+  contrast?: 'Default' | 'Increased';
+  accentColor?: 'Purple' | 'Indigo' | 'Emerald' | 'Blue' | 'Amber';
+  language?: string;
+  higherIntelligence?: boolean;
+  enableDictation?: boolean;
   defaultModel: string;
   codingModel: string;
   visionModel: string;
