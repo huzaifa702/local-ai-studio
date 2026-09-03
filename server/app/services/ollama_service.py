@@ -77,7 +77,8 @@ class OllamaService:
             yield json.dumps({"status": "error", "error": str(e)}) + "\n"
 
     def resolve_auto_model(self, model: str, has_images: bool, content: str, think_enabled: bool = False) -> str:
-        if model.lower() in ["auto", "omni", "auto-smart", "guts-omni", "guts omni"]:
+        m_lower = model.lower().strip()
+        if m_lower in ["auto", "omni", "auto-smart", "guts-omni", "guts omni", "ox-alpha", "ox_alpha", "oxalpha", "ox alpha"]:
             # 1. Vision Model
             if has_images:
                 return "moondream:latest"
@@ -101,6 +102,12 @@ class OllamaService:
 
             # 4. Default Ultra-Fast Chat Model
             return "llama3.2:3b"
+            
+        # If user passed a model that doesn't exist, fallback safely to llama3.2:3b
+        known_models = ["llama3.2:3b", "qwen2.5-coder:7b", "deepseek-r1:7b", "moondream:latest"]
+        if model not in known_models and not any(k in model for k in ["llama", "qwen", "deepseek", "moondream"]):
+            return "llama3.2:3b"
+            
         return model
 
     async def stream_chat(

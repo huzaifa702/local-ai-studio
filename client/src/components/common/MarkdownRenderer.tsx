@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Copy, Check, Terminal, Code2 } from 'lucide-react';
+import React, { useState, useMemo, useRef } from 'react';
+import { Copy, Check, Terminal, Code2, Play, Eye, Maximize2, Download, RotateCcw, X } from 'lucide-react';
 
 interface MarkdownRendererProps {
   content: string;
@@ -59,9 +59,59 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) =
   );
 };
 
-// Code block with copy button, syntax styling, language badge, and line numbers
+// Interactive Code Artifact Block with Code Tab, Live Preview Sandbox, and Fullscreen Mode
 const CodeBlock: React.FC<{ language: string; code: string }> = ({ language, code }) => {
   const [copied, setCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState<'code' | 'preview'>('code');
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  const lang = (language || 'plaintext').toLowerCase();
+  const isPreviewable = useMemo(() => {
+    const previewableLangs = ['html', 'htm', 'svg', 'javascript', 'js', 'jsx', 'react', 'tsx', 'css'];
+    if (previewableLangs.includes(lang)) return true;
+    if (code.includes('<html') || code.includes('<!DOCTYPE') || code.includes('<svg') || (code.includes('<div') && code.includes('</div>'))) {
+      return true;
+    }
+    return false;
+  }, [lang, code]);
+
+  // Construct runnable HTML content with Tailwind and modern styling
+  const previewHtml = useMemo(() => {
+    if (lang === 'svg' || code.trim().startsWith('<svg')) {
+      return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { margin: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #0f172a; }
+    svg { max-width: 90vw; max-height: 90vh; }
+  </style>
+</head>
+<body>${code}</body>
+</html>`;
+    }
+
+    if (code.includes('<!DOCTYPE') || code.includes('<html')) {
+      return code;
+    }
+
+    // Wrap snippet into modern HTML5 template with TailwindCSS
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background-color: #0f172a; color: #f8fafc; padding: 1.5rem; }
+  </style>
+</head>
+<body>
+  ${code.includes('<script>') || code.includes('<div') || code.includes('<button') ? code : `<div id="app">${code}</div>`}
+</body>
+</html>`;
+  }, [code, lang]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(code);
@@ -69,51 +119,184 @@ const CodeBlock: React.FC<{ language: string; code: string }> = ({ language, cod
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleDownload = () => {
+    const extMap: Record<string, string> = {
+      html: 'html', javascript: 'js', js: 'js', typescript: 'ts', ts: 'ts',
+      python: 'py', py: 'py', css: 'css', json: 'json', svg: 'svg'
+    };
+    const ext = extMap[lang] || 'txt';
+    const blob = new Blob([code], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `artifact.${ext}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const lines = code.split('\n');
 
   return (
-    <div className="my-4 rounded-xl overflow-hidden border border-slate-700/80 bg-[#090d16] shadow-xl">
-      {/* Code Header Bar */}
+    <div className="my-4 rounded-2xl overflow-hidden border border-slate-700/80 bg-[#090d16] shadow-2xl">
+      {/* Code / Artifact Header Bar */}
       <div className="flex items-center justify-between px-4 py-2 bg-slate-900/90 border-b border-slate-800 text-xs text-slate-400">
-        <div className="flex items-center gap-2 font-mono">
-          <Terminal className="w-3.5 h-3.5 text-indigo-400" />
-          <span className="text-slate-300 font-semibold uppercase tracking-wider">{language || 'CODE'}</span>
+        {/* Left: Language & Mode Tabs */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 font-mono mr-2">
+            <Terminal className="w-3.5 h-3.5 text-indigo-400" />
+            <span className="text-slate-300 font-semibold uppercase tracking-wider">{language || 'CODE'}</span>
+          </div>
+
+          {isPreviewable && (
+            <div className="flex items-center bg-slate-800/80 p-0.5 rounded-lg border border-slate-700/50">
+              <button
+                type="button"
+                onClick={() => setActiveTab('code')}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition cursor-pointer ${
+                  activeTab === 'code'
+                    ? 'bg-indigo-600 text-white shadow'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Code2 className="w-3 h-3" />
+                <span>Code</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('preview')}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition cursor-pointer ${
+                  activeTab === 'preview'
+                    ? 'bg-emerald-600 text-white shadow'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Play className="w-3 h-3 fill-current" />
+                <span>Live Preview</span>
+              </button>
+            </div>
+          )}
         </div>
-        <button
-          onClick={handleCopy}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-all text-xs font-medium cursor-pointer"
-        >
-          {copied ? (
+
+        {/* Right Action Icons */}
+        <div className="flex items-center gap-1.5">
+          {activeTab === 'preview' && (
             <>
-              <Check className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="text-emerald-400">Copied!</span>
-            </>
-          ) : (
-            <>
-              <Copy className="w-3.5 h-3.5" />
-              <span>Copy code</span>
+              <button
+                type="button"
+                onClick={() => setReloadKey((k) => k + 1)}
+                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
+                title="Reload Preview"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsFullscreen(true)}
+                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
+                title="Fullscreen Preview"
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
+              </button>
             </>
           )}
-        </button>
+
+          <button
+            type="button"
+            onClick={handleDownload}
+            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
+            title="Download file"
+          >
+            <Download className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition text-xs font-medium cursor-pointer"
+          >
+            {copied ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="text-emerald-400">Copied!</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5" />
+                <span>Copy</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
-      {/* Code Content with Line Numbers */}
-      <div className="p-4 overflow-x-auto text-[13px] font-mono leading-relaxed bg-[#0b0f19]">
-        <table className="w-full border-collapse">
-          <tbody>
-            {lines.map((line, lineIdx) => (
-              <tr key={lineIdx} className="hover:bg-slate-800/30">
-                <td className="pr-4 text-right select-none text-slate-600 w-8 text-xs align-top">
-                  {lineIdx + 1}
-                </td>
-                <td className="text-slate-200 whitespace-pre font-mono">
-                  {line || ' '}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {/* Body: Either Code Editor or Interactive Sandboxed IFrame */}
+      {activeTab === 'code' ? (
+        <div className="p-4 overflow-x-auto text-[13px] font-mono leading-relaxed bg-[#0b0f19]">
+          <table className="w-full border-collapse">
+            <tbody>
+              {lines.map((line, lineIdx) => (
+                <tr key={lineIdx} className="hover:bg-slate-800/30">
+                  <td className="pr-4 text-right select-none text-slate-600 w-8 text-xs align-top">
+                    {lineIdx + 1}
+                  </td>
+                  <td className="text-slate-200 whitespace-pre font-mono">
+                    {line || ' '}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="w-full bg-[#0f172a] h-[360px] relative border-t border-slate-800">
+          <iframe
+            key={reloadKey}
+            srcDoc={previewHtml}
+            title="Artifact Preview"
+            sandbox="allow-scripts allow-modals"
+            className="w-full h-full border-0 rounded-b-2xl bg-slate-950"
+          />
+        </div>
+      )}
+
+      {/* Fullscreen Interactive Modal */}
+      {isFullscreen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex flex-col p-4 sm:p-6 animate-in fade-in duration-200">
+          <div className="flex items-center justify-between px-4 py-3 bg-slate-900 border border-slate-800 rounded-t-2xl">
+            <div className="flex items-center gap-2">
+              <Eye className="w-4 h-4 text-emerald-400" />
+              <span className="text-sm font-semibold text-white">Live Artifact Preview</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setReloadKey((k) => k + 1)}
+                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
+                title="Reload"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsFullscreen(false)}
+                className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition cursor-pointer"
+                title="Close Fullscreen"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 bg-slate-950 rounded-b-2xl border-x border-b border-slate-800 overflow-hidden shadow-2xl">
+            <iframe
+              key={`fs-${reloadKey}`}
+              srcDoc={previewHtml}
+              title="Artifact Fullscreen Preview"
+              sandbox="allow-scripts allow-modals"
+              className="w-full h-full border-0"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
