@@ -270,6 +270,8 @@ export const api = {
       provider?: string;
       webSearchEnabled?: boolean;
       thinkEnabled?: boolean;
+      isTemporary?: boolean;
+      messages?: { role: string; content: string }[];
     },
     onToken: (token: string) => void,
     onInit: (data: { conversationId: string; userMessageId: string; assistantMessageId: string; citations?: CitationItem[] }) => void,

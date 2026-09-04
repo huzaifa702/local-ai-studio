@@ -139,6 +139,15 @@ export const Sidebar: React.FC = () => {
           <span className="font-semibold">New</span>
         </button>
 
+        {/* Images Studio & Gallery (Matching ChatGPT Screenshot 1) */}
+        <button
+          onClick={() => setActiveModal('images')}
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] font-medium text-xs transition cursor-pointer"
+        >
+          <ImageIcon className="w-4 h-4 text-[var(--text-sub)]" />
+          <span>Images</span>
+        </button>
+
         {/* Projects */}
         <button
           onClick={() => setActiveModal('projects')}

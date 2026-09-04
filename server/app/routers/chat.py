@@ -39,6 +39,8 @@ class SendMessageRequest(BaseModel):
     provider: Optional[str] = "ollama"
     webSearchEnabled: Optional[bool] = False
     thinkEnabled: Optional[bool] = False
+    isTemporary: Optional[bool] = False
+    messages: Optional[List[Dict[str, str]]] = None
 
 class FeedbackRequest(BaseModel):
     messageId: str
@@ -297,18 +299,21 @@ async def send_message(req: SendMessageRequest, user_id: str = Depends(get_curre
     try:
         conv_id = req.conversationId
         
-        # 1. Create conversation if not provided
-        if not conv_id:
-            conv_id = str(uuid.uuid4())
-            auto_title = req.content[:35] + ("..." if len(req.content) > 35 else "")
-            await db.execute(
-                """
-                INSERT INTO conversations (id, user_id, title, project_id, is_pinned, is_archived, model, system_prompt)
-                VALUES (?, ?, ?, ?, 0, 0, ?, ?)
-                """,
-                (conv_id, user_id, auto_title, req.projectId, req.model, req.systemPrompt)
-            )
-            await db.commit()
+        # 1. Create conversation if not provided (skip if temporary)
+        if not req.isTemporary:
+            if not conv_id:
+                conv_id = str(uuid.uuid4())
+                auto_title = req.content[:35] + ("..." if len(req.content) > 35 else "")
+                await db.execute(
+                    """
+                    INSERT INTO conversations (id, user_id, title, project_id, is_pinned, is_archived, model, system_prompt)
+                    VALUES (?, ?, ?, ?, 0, 0, ?, ?)
+                    """,
+                    (conv_id, user_id, auto_title, req.projectId, req.model, req.systemPrompt)
+                )
+                await db.commit()
+        else:
+            conv_id = "temporary-session"
 
         # 2. Web Search Engine integration
         search_citations = []
@@ -337,24 +342,30 @@ async def send_message(req: SendMessageRequest, user_id: str = Depends(get_curre
 
         full_user_content = req.content + doc_context
 
-        # 4. Store User message in DB
+        # 4. Store User message in DB (skip if temporary)
         user_msg_id = str(uuid.uuid4())
-        await db.execute(
-            """
-            INSERT INTO messages (id, conversation_id, role, content, attachments_json, model)
-            VALUES (?, ?, 'user', ?, ?, ?)
-            """,
-            (user_msg_id, conv_id, full_user_content, json.dumps(req.attachments or []), req.model)
-        )
-        await db.commit()
+        if not req.isTemporary:
+            await db.execute(
+                """
+                INSERT INTO messages (id, conversation_id, role, content, attachments_json, model)
+                VALUES (?, ?, 'user', ?, ?, ?)
+                """,
+                (user_msg_id, conv_id, full_user_content, json.dumps(req.attachments or []), req.model)
+            )
+            await db.commit()
 
         # 5. Fetch prior message history
-        cursor = await db.execute(
-            "SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY created_at ASC",
-            (conv_id,)
-        )
-        history_rows = await cursor.fetchall()
-        messages_payload = [{"role": r["role"], "content": r["content"]} for r in history_rows]
+        if req.isTemporary and req.messages:
+            messages_payload = req.messages
+        elif not req.isTemporary:
+            cursor = await db.execute(
+                "SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY created_at ASC",
+                (conv_id,)
+            )
+            history_rows = await cursor.fetchall()
+            messages_payload = [{"role": r["role"], "content": r["content"]} for r in history_rows]
+        else:
+            messages_payload = [{"role": "user", "content": full_user_content}]
 
         # 6. Inject memory + web search into system prompt
         memory_ctx = await memory_service.format_memory_prompt(user_id, req.projectId)
@@ -405,23 +416,24 @@ async def send_message(req: SendMessageRequest, user_id: str = Depends(get_curre
 
             final_content = "".join(collected_response)
             
-            # Save assistant message to SQLite
-            db_save = await get_db()
-            try:
-                await db_save.execute(
-                    """
-                    INSERT INTO messages (id, conversation_id, role, content, model, citations_json)
-                    VALUES (?, ?, 'assistant', ?, ?, ?)
-                    """,
-                    (assistant_msg_id, conv_id, final_content, req.model, json.dumps(search_citations))
-                )
-                await db_save.execute(
-                    "UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                    (conv_id,)
-                )
-                await db_save.commit()
-            finally:
-                await db_save.close()
+            # Save assistant message to SQLite (skip if temporary)
+            if not req.isTemporary:
+                db_save = await get_db()
+                try:
+                    await db_save.execute(
+                        """
+                        INSERT INTO messages (id, conversation_id, role, content, model, citations_json)
+                        VALUES (?, ?, 'assistant', ?, ?, ?)
+                        """,
+                        (assistant_msg_id, conv_id, final_content, req.model, json.dumps(search_citations))
+                    )
+                    await db_save.execute(
+                        "UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                        (conv_id,)
+                    )
+                    await db_save.commit()
+                finally:
+                    await db_save.close()
 
             yield f"data: {json.dumps({'type': 'done', 'finalContent': final_content, 'citations': search_citations})}\n\n"
 

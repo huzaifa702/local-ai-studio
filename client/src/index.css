@@ -81,6 +81,19 @@ html, body, #root {
   box-shadow: 0 0 28px rgba(0, 0, 0, 0.12);
 }
 
+/* High Contrast Mode */
+.contrast-increased {
+  --border-input: #666666 !important;
+  --border-subtle: #4d4d4d !important;
+  --border-sidebar: #4d4d4d !important;
+}
+
+html:not(.dark).contrast-increased {
+  --border-input: #888888 !important;
+  --border-subtle: #bbbbbb !important;
+  --border-sidebar: #bbbbbb !important;
+}
+
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
   width: 5px;
@@ -96,3 +109,4 @@ html, body, #root {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(150, 150, 150, 0.45);
 }
+

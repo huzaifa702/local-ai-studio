@@ -20,12 +20,15 @@ interface AppState {
   // Feature Toggles (ChatGPT Style)
   searchEnabled: boolean;
   thinkEnabled: boolean;
+  isTemporaryChat: boolean;
   toggleSearch: () => void;
   toggleThink: () => void;
+  toggleTemporaryChat: () => void;
+  setTemporaryChat: (enabled: boolean) => void;
 
   // Navigation & Modals
   sidebarOpen: boolean;
-  activeModal: 'models' | 'memory' | 'projects' | 'settings' | 'voice' | 'auth' | 'commandPalette' | 'profile' | null;
+  activeModal: 'models' | 'memory' | 'projects' | 'settings' | 'voice' | 'auth' | 'commandPalette' | 'profile' | 'images' | null;
   searchQuery: string;
 
   // Models
@@ -113,8 +116,52 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   searchEnabled: false,
   thinkEnabled: false,
+  isTemporaryChat: false,
   toggleSearch: () => set((state) => ({ searchEnabled: !state.searchEnabled })),
   toggleThink: () => set((state) => ({ thinkEnabled: !state.thinkEnabled })),
+  toggleTemporaryChat: () => set((state) => {
+    const next = !state.isTemporaryChat;
+    if (next) {
+      return {
+        isTemporaryChat: true,
+        activeConversationId: null,
+        activeConversation: {
+          id: 'temporary-session',
+          user_id: state.user?.id || 'guest',
+          title: 'Temporary Chat',
+          is_pinned: 0,
+          is_archived: 0,
+          model: state.selectedModel,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          messages: []
+        }
+      };
+    } else {
+      return { isTemporaryChat: false, activeConversationId: null, activeConversation: null };
+    }
+  }),
+  setTemporaryChat: (enabled) => set((state) => {
+    if (enabled) {
+      return {
+        isTemporaryChat: true,
+        activeConversationId: null,
+        activeConversation: {
+          id: 'temporary-session',
+          user_id: state.user?.id || 'guest',
+          title: 'Temporary Chat',
+          is_pinned: 0,
+          is_archived: 0,
+          model: state.selectedModel,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          messages: []
+        }
+      };
+    } else {
+      return { isTemporaryChat: false, activeConversationId: null, activeConversation: null };
+    }
+  }),
   sidebarOpen: true,
   activeModal: null,
   searchQuery: '',
@@ -323,7 +370,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       settings, 
       activeProjectId,
       searchEnabled,
-      thinkEnabled
+      thinkEnabled,
+      isTemporaryChat,
+      activeConversation
     } = get();
 
     if (!content.trim() && attachments.length === 0 && images.length === 0) return;
@@ -343,7 +392,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const tempUserMsg: Message = {
       id: `temp_user_${Date.now()}`,
-      conversation_id: activeConversationId || 'temp',
+      conversation_id: isTemporaryChat ? 'temporary-session' : (activeConversationId || 'temp'),
       role: 'user',
       content,
       attachments,
@@ -357,16 +406,35 @@ export const useAppStore = create<AppState>((set, get) => ({
           messages: [...(state.activeConversation!.messages || []), tempUserMsg]
         }
       }));
+    } else if (isTemporaryChat) {
+      set({
+        activeConversation: {
+          id: 'temporary-session',
+          user_id: get().user?.id || 'guest',
+          title: 'Temporary Chat',
+          is_pinned: 0,
+          is_archived: 0,
+          model: selectedModel,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          messages: [tempUserMsg]
+        }
+      });
     }
 
-    let targetConvId = activeConversationId;
+    let targetConvId = isTemporaryChat ? 'temporary-session' : activeConversationId;
     let accumulatedText = '';
     let latestCitations: CitationItem[] = [];
+
+    // Prior messages for temporary chat memory
+    const priorTemporaryMessages = isTemporaryChat && activeConversation?.messages 
+      ? activeConversation.messages.map(m => ({ role: m.role, content: m.content }))
+      : undefined;
 
     try {
       await api.sendMessageStream(
         {
-          conversationId: activeConversationId || undefined,
+          conversationId: isTemporaryChat ? undefined : (activeConversationId || undefined),
           content,
           model: selectedModel,
           systemPrompt: settings.systemPrompt,
@@ -377,7 +445,9 @@ export const useAppStore = create<AppState>((set, get) => ({
           cloudApiKey,
           provider: selectedProvider,
           webSearchEnabled: forceSearch || searchEnabled,
-          thinkEnabled
+          thinkEnabled,
+          isTemporary: isTemporaryChat,
+          messages: priorTemporaryMessages
         },
         // onToken
         (token) => {
@@ -386,12 +456,14 @@ export const useAppStore = create<AppState>((set, get) => ({
         },
         // onInit
         (initData) => {
-          targetConvId = initData.conversationId;
+          if (!isTemporaryChat) {
+            targetConvId = initData.conversationId;
+            set({ activeConversationId: initData.conversationId });
+          }
           if (initData.citations) {
             latestCitations = initData.citations;
             set({ streamingCitations: initData.citations });
           }
-          set({ activeConversationId: initData.conversationId });
         },
         // onError
         (error) => {
@@ -402,7 +474,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         (finalContent, citations) => {
           const finalAssistantMsg: Message = {
             id: `msg_asst_${Date.now()}`,
-            conversation_id: targetConvId || 'temp',
+            conversation_id: targetConvId || 'temporary-session',
             role: 'assistant',
             content: finalContent || accumulatedText,
             citations: citations || latestCitations,
@@ -417,16 +489,18 @@ export const useAppStore = create<AppState>((set, get) => ({
             abortController: null,
             activeConversation: state.activeConversation ? {
               ...state.activeConversation,
-              id: targetConvId || state.activeConversation.id,
+              id: isTemporaryChat ? 'temporary-session' : (targetConvId || state.activeConversation.id),
               messages: [
-                ...(state.activeConversation.messages || []).filter(m => !m.id.startsWith('temp_')),
+                ...(state.activeConversation.messages || []).filter(m => !m.id.startsWith('temp_user_')),
                 tempUserMsg,
                 finalAssistantMsg
               ]
             } : null
           }));
 
-          get().fetchConversations();
+          if (!isTemporaryChat) {
+            get().fetchConversations();
+          }
         },
         abortCtrl.signal
       );
@@ -437,7 +511,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         console.error('Streaming error:', e);
       }
       set({ isStreaming: false, streamingContent: '', streamingCitations: [], abortController: null });
-      if (targetConvId) {
+      if (targetConvId && !isTemporaryChat) {
         get().selectConversation(targetConvId);
       }
     }

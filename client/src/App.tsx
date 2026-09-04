@@ -11,6 +11,7 @@ import { SettingsModal } from './components/modals/SettingsModal';
 import { AuthModal } from './components/modals/AuthModal';
 import { CommandPalette } from './components/modals/CommandPalette';
 import { ProfileModal } from './components/modals/ProfileModal';
+import { ImagesModal } from './components/modals/ImagesModal';
 
 export const App: React.FC = () => {
   const { 
@@ -64,6 +65,13 @@ export const App: React.FC = () => {
     // 1. Theme
     if (settings.theme === 'light') {
       document.documentElement.classList.remove('dark');
+    } else if (settings.theme === 'system') {
+      const isSystemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (isSystemDark) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
     } else {
       document.documentElement.classList.add('dark');
     }
@@ -106,6 +114,7 @@ export const App: React.FC = () => {
       <SettingsModal />
       <AuthModal />
       <ProfileModal />
+      <ImagesModal />
       <CommandPalette />
     </div>
   );

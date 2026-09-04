@@ -4,7 +4,8 @@ import {
   PenLine, 
   Globe, 
   ArrowDown,
-  Sparkles
+  Sparkles,
+  MessageSquareDashed
 } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
 import { MessageItem } from './MessageItem';
@@ -21,7 +22,9 @@ export const ChatContainer: React.FC = () => {
     selectedModel,
     user,
     toggleSearch,
-    setSelectedModel
+    setSelectedModel,
+    isTemporaryChat,
+    setActiveModal
   } = useAppStore();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -49,6 +52,15 @@ export const ChatContainer: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[var(--bg-main)] overflow-hidden relative">
+      {/* Temporary Chat Notice Banner */}
+      {isTemporaryChat && (
+        <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-center text-xs text-amber-400 flex items-center justify-center gap-2 select-none shrink-0 z-20">
+          <MessageSquareDashed className="w-3.5 h-3.5" />
+          <span className="font-medium">Temporary Chat:</span>
+          <span className="text-[var(--text-sub)]">Messages won't be saved in history or stored in the database.</span>
+        </div>
+      )}
+
       {/* Messages Scroll Area */}
       <div 
         ref={scrollContainerRef}
@@ -80,10 +92,7 @@ export const ChatContainer: React.FC = () => {
               /* Logged In Starter Options (Screenshot 1) */
               <div className="flex flex-col items-start gap-1 w-full max-w-xl text-left pt-1">
                 <button
-                  onClick={() => {
-                    setSelectedModel('moondream:latest', 'ollama');
-                    sendMessage('Analyze this image and extract any key information, objects, and text.', [], []);
-                  }}
+                  onClick={() => setActiveModal('images')}
                   className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-sub)] hover:text-[var(--text-main)] transition cursor-pointer w-full text-xs font-normal"
                 >
                   <ImageIcon className="w-4 h-4 text-[var(--text-muted)] shrink-0" />

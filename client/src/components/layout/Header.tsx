@@ -12,7 +12,9 @@ import {
   Check, 
   Copy, 
   Link as LinkIcon,
-  X
+  X,
+  MessageSquareDashed,
+  ChevronRight
 } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
 import { api } from '../../services/api';
@@ -28,7 +30,9 @@ export const Header: React.FC = () => {
     deleteConversation,
     createNewChat,
     setActiveModal,
-    user
+    user,
+    isTemporaryChat,
+    toggleTemporaryChat
   } = useAppStore();
 
   const [dotsMenuOpen, setDotsMenuOpen] = useState(false);
@@ -135,33 +139,80 @@ export const Header: React.FC = () => {
           </button>
         </div>
 
-        {/* Right: Clean Share & 3-Dots Action Menu (Matching Exact User Screenshot) */}
-        <div className="flex items-center gap-2">
-          {activeConversationId ? (
-            <>
-              {/* Share Button */}
-              <button
-                onClick={handleShareClick}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-sidebar-hover)] hover:bg-[var(--border-subtle)] text-[var(--text-main)] text-xs font-medium transition cursor-pointer border border-[var(--border-subtle)]"
-                title="Share Chat"
-              >
-                <Share2 className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Share</span>
-              </button>
+        {/* Right: Temporary Chat, Share & 3-Dots Action Menu */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* 1. Temporary Chat Toggle Button */}
+          <button
+            onClick={() => toggleTemporaryChat()}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer border ${
+              isTemporaryChat
+                ? 'bg-amber-500/15 text-amber-400 border-amber-500/30 ring-1 ring-amber-500/20 shadow-sm'
+                : 'bg-[var(--bg-sidebar-hover)] hover:bg-[var(--border-subtle)] text-[var(--text-sub)] hover:text-[var(--text-main)] border-[var(--border-subtle)]'
+            }`}
+            title={isTemporaryChat ? "Temporary chat is ON (messages will not be saved)" : "Start a temporary chat (not saved in history)"}
+          >
+            <MessageSquareDashed className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">
+              {isTemporaryChat ? 'Temporary Chat' : 'Temporary'}
+            </span>
+          </button>
 
-              {/* 3-Dots Action Menu */}
-              <div className="relative" ref={dotsRef}>
+          {/* 2. Share Button */}
+          <button
+            onClick={handleShareClick}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-sidebar-hover)] hover:bg-[var(--border-subtle)] text-[var(--text-main)] text-xs font-semibold transition cursor-pointer border border-[var(--border-subtle)]"
+            title="Share Chat & Create Link"
+          >
+            <Share2 className="w-3.5 h-3.5 text-[var(--text-sub)]" />
+            <span className="hidden sm:inline">Share</span>
+          </button>
+
+          {/* 3. 3-Dots Action Menu */}
+          <div className="relative" ref={dotsRef}>
+            <button
+              onClick={() => setDotsMenuOpen(!dotsMenuOpen)}
+              className="p-2 rounded-full hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-sub)] hover:text-[var(--text-main)] transition cursor-pointer border border-[var(--border-subtle)]"
+              title="More options"
+            >
+              <MoreHorizontal className="w-4 h-4" />
+            </button>
+
+            {/* 3-Dots Dropdown Options */}
+            {dotsMenuOpen && (
+              <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-[var(--bg-main)] border border-[var(--border-input)] shadow-2xl p-1.5 z-50 text-xs animate-in fade-in space-y-0.5">
+                {/* Share Chat */}
                 <button
-                  onClick={() => setDotsMenuOpen(!dotsMenuOpen)}
-                  className="p-2 rounded-full hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-sub)] hover:text-[var(--text-main)] transition cursor-pointer"
-                  title="More chat options"
+                  onClick={handleShareClick}
+                  className="w-full text-left px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] transition flex items-center justify-between cursor-pointer"
                 >
-                  <MoreHorizontal className="w-4 h-4" />
+                  <div className="flex items-center gap-2.5">
+                    <Share2 className="w-4 h-4 text-blue-400" />
+                    <span>Share chat / Link</span>
+                  </div>
+                  <ChevronRight className="w-3 h-3 text-[var(--text-muted)]" />
                 </button>
 
-                {/* 3-Dots Dropdown Options */}
-                {dotsMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-medium)] shadow-2xl p-1.5 z-50 text-xs animate-in fade-in space-y-0.5">
+                {/* Temporary Chat Toggle */}
+                <button
+                  onClick={() => {
+                    setDotsMenuOpen(false);
+                    toggleTemporaryChat();
+                  }}
+                  className="w-full text-left px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] transition flex items-center justify-between cursor-pointer"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <MessageSquareDashed className="w-4 h-4 text-amber-400" />
+                    <span>Temporary chat</span>
+                  </div>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${isTemporaryChat ? 'bg-amber-500/20 text-amber-400' : 'text-[var(--text-muted)]'}`}>
+                    {isTemporaryChat ? 'ON' : 'OFF'}
+                  </span>
+                </button>
+
+                {activeConversationId && (
+                  <>
+                    <div className="border-t border-[var(--border-subtle)] my-0.5 pt-0.5" />
+
                     {/* View Files in Chat */}
                     <button
                       onClick={handleViewFiles}
@@ -192,7 +243,7 @@ export const Header: React.FC = () => {
                       className="w-full text-left px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] transition flex items-center gap-2.5 cursor-pointer"
                     >
                       <Archive className="w-4 h-4 text-slate-400" />
-                      <span>Archive</span>
+                      <span>Archive chat</span>
                     </button>
 
                     {/* Move to Project */}
@@ -205,15 +256,6 @@ export const Header: React.FC = () => {
                     >
                       <FolderPlus className="w-4 h-4 text-emerald-400" />
                       <span>Move to project</span>
-                    </button>
-
-                    {/* Share Chat */}
-                    <button
-                      onClick={handleShareClick}
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] transition flex items-center gap-2.5 cursor-pointer"
-                    >
-                      <Share2 className="w-4 h-4 text-blue-400" />
-                      <span>Share chat</span>
                     </button>
 
                     {/* Delete Chat */}
@@ -229,41 +271,11 @@ export const Header: React.FC = () => {
                         <span>Delete chat</span>
                       </button>
                     </div>
-                  </div>
+                  </>
                 )}
               </div>
-            </>
-          ) : user ? (
-            /* Logged in user avatar pill on top right */
-            <button
-              onClick={() => setActiveModal('profile')}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--bg-sidebar-hover)] hover:bg-[var(--border-subtle)] border border-[var(--border-subtle)] text-xs transition cursor-pointer"
-              title="View Profile & Settings"
-            >
-              <div className="w-6 h-6 rounded-full bg-amber-700 text-white font-bold text-[10px] flex items-center justify-center shadow-sm">
-                {(user.displayName || user.username).slice(0, 2).toUpperCase()}
-              </div>
-              <span className="font-semibold text-[var(--text-main)] max-w-[130px] truncate">
-                {user.displayName || user.username.split('@')[0]}
-              </span>
-            </button>
-          ) : (
-            /* Logged out guest view */
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setActiveModal('auth')}
-                className="px-4 py-1.5 rounded-full bg-[var(--bg-sidebar-hover)] hover:bg-[var(--border-subtle)] text-[var(--text-main)] text-xs font-semibold transition cursor-pointer border border-[var(--border-subtle)]"
-              >
-                Log in
-              </button>
-              <button
-                onClick={() => setActiveModal('auth')}
-                className="px-4 py-1.5 rounded-full bg-white text-black hover:bg-slate-200 text-xs font-semibold shadow-sm transition cursor-pointer"
-              >
-                Sign up for free
-              </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </header>
 
