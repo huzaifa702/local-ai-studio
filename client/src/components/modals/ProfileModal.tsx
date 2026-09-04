@@ -21,13 +21,13 @@ export const ProfileModal: React.FC = () => {
   const { activeModal, setActiveModal, user, setUser, conversations } = useAppStore();
   const [activeRange, setActiveRange] = useState<'Daily' | 'Weekly' | 'Cumulative'>('Daily');
   const [isEditing, setIsEditing] = useState(false);
-  const [editName, setEditName] = useState(user?.displayName || 'huzaifa rajput');
+  const [editName, setEditName] = useState(user?.displayName || user?.username || 'User');
 
   if (activeModal !== 'profile') return null;
 
   const getInitials = (name?: string) => {
-    if (!name) return 'HR';
-    const parts = name.trim().split(' ');
+    if (!name) return 'U';
+    const parts = name.trim().split(' ').filter(Boolean);
     if (parts.length > 1) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
     return name.slice(0, 2).toUpperCase();
   };
@@ -104,10 +104,10 @@ export const ProfileModal: React.FC = () => {
             ) : (
               <div>
                 <h1 className="text-lg font-bold text-white tracking-tight">
-                  {user?.displayName || 'huzaifa rajput'}
+                  {user?.displayName || user?.username || 'User'}
                 </h1>
                 <div className="text-xs text-[#71717a] flex items-center justify-center gap-1.5 mt-0.5">
-                  <span>@{user?.username || 'hr1034072'}</span>
+                  <span>@{user?.username || (user?.email ? user.email.split('@')[0] : 'user')}</span>
                   <span>•</span>
                   <span className="text-emerald-400 font-medium">Free</span>
                 </div>

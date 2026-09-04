@@ -61,21 +61,26 @@ export const Header: React.FC = () => {
 
   // Handle Share Chat
   const handleShareClick = async () => {
-    if (!activeConversationId) return;
     setDotsMenuOpen(false);
+    if (!activeConversationId) {
+      setShareLink('');
+      setShareModalOpen(true);
+      return;
+    }
     setLoadingShare(true);
     setShareModalOpen(true);
     try {
       const res = await api.shareConversation(activeConversationId);
-      setShareLink(res.shareUrl);
+      setShareLink(res.shareUrl || `${window.location.origin}/share/${activeConversationId}`);
     } catch (e: any) {
-      setShareLink(`http://localhost:5173/share/${activeConversationId}`);
+      setShareLink(`${window.location.origin}/share/${activeConversationId}`);
     } finally {
       setLoadingShare(false);
     }
   };
 
   const copyShareLink = () => {
+    if (!shareLink) return;
     navigator.clipboard.writeText(shareLink);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -83,14 +88,39 @@ export const Header: React.FC = () => {
 
   // Handle View Files
   const handleViewFiles = async () => {
-    if (!activeConversationId) return;
     setDotsMenuOpen(false);
     setFilesModalOpen(true);
+    if (!activeConversationId) {
+      setChatFiles([]);
+      return;
+    }
     try {
       const res = await api.getConversationFiles(activeConversationId);
-      setChatFiles(res.files || []);
+      let files = res.files || [];
+      if (activeConversation?.messages) {
+        const localImages = activeConversation.messages
+          .flatMap((m: any) => m.images || [])
+          .map((img: string, idx: number) => ({
+            filename: `Attachment image ${idx + 1}`,
+            previewUrl: img,
+            fileSize: 1024 * 32
+          }));
+        files = [...files, ...localImages];
+      }
+      setChatFiles(files);
     } catch (e) {
-      setChatFiles([]);
+      if (activeConversation?.messages) {
+        const localImages = activeConversation.messages
+          .flatMap((m: any) => m.images || [])
+          .map((img: string, idx: number) => ({
+            filename: `Attachment image ${idx + 1}`,
+            previewUrl: img,
+            fileSize: 1024 * 32
+          }));
+        setChatFiles(localImages);
+      } else {
+        setChatFiles([]);
+      }
     }
   };
 
@@ -185,6 +215,18 @@ export const Header: React.FC = () => {
                   <>
                     <div className="border-t border-[var(--border-subtle)] my-0.5 pt-0.5" />
 
+                    {/* Move to Project */}
+                    <button
+                      onClick={() => {
+                        setDotsMenuOpen(false);
+                        setMoveModalOpen(true);
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] transition flex items-center gap-2.5 cursor-pointer"
+                    >
+                      <FolderPlus className="w-4 h-4 text-emerald-400" />
+                      <span>Move to project</span>
+                    </button>
+
                     {/* View Files in Chat */}
                     <button
                       onClick={handleViewFiles}
@@ -253,27 +295,38 @@ export const Header: React.FC = () => {
               </button>
             </div>
 
-            <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
-              Messages you send after sharing won't be visible to others. Anyone with the link will be able to view this conversation.
-            </p>
+            {!activeConversationId ? (
+              <div className="py-4 text-center space-y-2">
+                <p className="text-xs font-semibold text-[var(--text-main)]">No active chat to share yet</p>
+                <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                  Start a conversation by sending a message first, then you can generate and share a public link.
+                </p>
+              </div>
+            ) : (
+              <>
+                <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                  Messages you send after sharing won't be visible to others. Anyone with the link will be able to view this conversation.
+                </p>
 
-            <div className="flex items-center gap-2 p-2 rounded-2xl bg-[var(--bg-main)] border border-[var(--border-subtle)]">
-              <LinkIcon className="w-4 h-4 text-[var(--text-muted)] shrink-0 ml-1" />
-              <input
-                type="text"
-                readOnly
-                value={shareLink || 'Generating link...'}
-                className="w-full bg-transparent text-xs text-[var(--text-primary)] focus:outline-none truncate font-mono"
-              />
-              <button
-                onClick={copyShareLink}
-                disabled={!shareLink}
-                className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs flex items-center gap-1.5 cursor-pointer shrink-0 transition"
-              >
-                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copied ? 'Copied!' : 'Copy Link'}</span>
-              </button>
-            </div>
+                <div className="flex items-center gap-2 p-2 rounded-2xl bg-[var(--bg-main)] border border-[var(--border-subtle)]">
+                  <LinkIcon className="w-4 h-4 text-[var(--text-muted)] shrink-0 ml-1" />
+                  <input
+                    type="text"
+                    readOnly
+                    value={shareLink || (loadingShare ? 'Generating link...' : '')}
+                    className="w-full bg-transparent text-xs text-[var(--text-primary)] focus:outline-none truncate font-mono"
+                  />
+                  <button
+                    onClick={copyShareLink}
+                    disabled={!shareLink}
+                    className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs flex items-center gap-1.5 cursor-pointer shrink-0 transition disabled:opacity-50"
+                  >
+                    {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copied ? 'Copied!' : 'Copy Link'}</span>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

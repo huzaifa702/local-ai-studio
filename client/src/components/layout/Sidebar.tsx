@@ -70,8 +70,14 @@ export const Sidebar: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const pinned = conversations.filter(c => Boolean(c.is_pinned) && !Boolean(c.is_archived));
-  const unpinned = conversations.filter(c => !Boolean(c.is_pinned) && !Boolean(c.is_archived));
+  const filteredConversations = conversations.filter(c => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return c.title.toLowerCase().includes(q);
+  });
+
+  const pinned = filteredConversations.filter(c => Boolean(c.is_pinned) && !Boolean(c.is_archived));
+  const unpinned = filteredConversations.filter(c => !Boolean(c.is_pinned) && !Boolean(c.is_archived));
 
   const startRename = (c: Conversation, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -88,8 +94,8 @@ export const Sidebar: React.FC = () => {
   };
 
   const getInitials = (name?: string) => {
-    if (!name) return 'HR';
-    const parts = name.trim().split(' ');
+    if (!name) return 'U';
+    const parts = name.trim().split(' ').filter(Boolean);
     if (parts.length > 1) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
     return name.slice(0, 2).toUpperCase();
   };
@@ -111,13 +117,6 @@ export const Sidebar: React.FC = () => {
           <span className="tracking-tight">Guts AI</span>
         </div>
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => createNewChat()}
-            className="p-2 rounded-lg text-[var(--text-sub)] hover:text-[var(--text-main)] hover:bg-[var(--bg-sidebar-hover)] transition cursor-pointer"
-            title="New chat"
-          >
-            <SquarePen className="w-4 h-4" />
-          </button>
           <button
             onClick={() => setSidebarOpen(false)}
             className="p-2 rounded-lg text-[var(--text-sub)] hover:text-[var(--text-main)] hover:bg-[var(--bg-sidebar-hover)] transition cursor-pointer"
@@ -223,6 +222,12 @@ export const Sidebar: React.FC = () => {
             No previous chats
           </div>
         )}
+
+        {conversations.length > 0 && filteredConversations.length === 0 && searchQuery.trim() && (
+          <div className="text-center py-6 text-[var(--text-muted)] text-xs">
+            No chats matching "{searchQuery}"
+          </div>
+        )}
       </div>
 
       {/* Bottom Footer Section */}
@@ -246,7 +251,7 @@ export const Sidebar: React.FC = () => {
                   </div>
                   <div className="min-w-0">
                     <div className="font-semibold text-xs text-[var(--text-main)] truncate">
-                      {user.displayName || user.username || 'huzaifa rajput'}
+                      {user.displayName || user.username || user.email?.split('@')[0] || 'User'}
                     </div>
                     <div className="text-[10px] text-[var(--text-muted)] truncate">
                       Free
@@ -326,7 +331,7 @@ export const Sidebar: React.FC = () => {
               </div>
               <div className="min-w-0">
                 <div className="font-semibold text-xs text-[var(--text-main)] truncate">
-                  {user.displayName || user.username || 'huzaifa rajput'}
+                  {user.displayName || user.username || user.email?.split('@')[0] || 'User'}
                 </div>
                 <div className="text-[10px] text-[var(--text-muted)] truncate">
                   {user.email ? 'Free' : 'Local'}

@@ -472,12 +472,14 @@ export const useAppStore = create<AppState>((set, get) => ({
           messages: [...(state.activeConversation!.messages || []), tempUserMsg]
         }
       }));
-    } else if (isTemporaryChat) {
+    } else {
+      const initialConvId = isTemporaryChat ? 'temporary-session' : (activeConversationId || `conv_${Date.now()}`);
       set({
+        activeConversationId: initialConvId,
         activeConversation: {
-          id: 'temporary-session',
+          id: initialConvId,
           user_id: get().user?.id || 'guest',
-          title: 'Temporary Chat',
+          title: content.slice(0, 32),
           is_pinned: 0,
           is_archived: 0,
           model: selectedModel,
@@ -488,11 +490,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
     }
 
-    let targetConvId = isTemporaryChat ? 'temporary-session' : activeConversationId;
+    let targetConvId = isTemporaryChat ? 'temporary-session' : (activeConversationId || undefined);
     let accumulatedText = '';
     let latestCitations: CitationItem[] = [];
 
-    // Prior messages for temporary chat memory
+    // Prior messages for multi-turn context
     const priorTemporaryMessages = isTemporaryChat && activeConversation?.messages 
       ? activeConversation.messages.map(m => ({ role: m.role, content: m.content }))
       : undefined;
@@ -522,9 +524,15 @@ export const useAppStore = create<AppState>((set, get) => ({
         },
         // onInit
         (initData) => {
-          if (!isTemporaryChat) {
+          if (!isTemporaryChat && initData.conversationId) {
             targetConvId = initData.conversationId;
-            set({ activeConversationId: initData.conversationId });
+            set((state) => ({
+              activeConversationId: initData.conversationId,
+              activeConversation: state.activeConversation ? {
+                ...state.activeConversation,
+                id: initData.conversationId
+              } : state.activeConversation
+            }));
           }
           if (initData.citations) {
             latestCitations = initData.citations;
@@ -548,21 +556,38 @@ export const useAppStore = create<AppState>((set, get) => ({
             created_at: new Date().toISOString()
           };
 
-          set((state) => ({
-            isStreaming: false,
-            streamingContent: '',
-            streamingCitations: [],
-            abortController: null,
-            activeConversation: state.activeConversation ? {
-              ...state.activeConversation,
-              id: isTemporaryChat ? 'temporary-session' : (targetConvId || state.activeConversation.id),
-              messages: [
-                ...(state.activeConversation.messages || []).filter(m => !m.id.startsWith('temp_user_')),
-                tempUserMsg,
-                finalAssistantMsg
-              ]
-            } : null
-          }));
+          set((state) => {
+            const currentConv = state.activeConversation || {
+              id: targetConvId || 'conv_active',
+              user_id: state.user?.id || 'guest',
+              title: content.slice(0, 32),
+              is_pinned: 0,
+              is_archived: 0,
+              model: selectedModel,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              messages: []
+            };
+
+            const existingMessages = (currentConv.messages || []).filter(m => !m.id.startsWith('temp_user_'));
+
+            return {
+              isStreaming: false,
+              streamingContent: '',
+              streamingCitations: [],
+              abortController: null,
+              activeConversationId: targetConvId || currentConv.id,
+              activeConversation: {
+                ...currentConv,
+                id: targetConvId || currentConv.id,
+                messages: [
+                  ...existingMessages,
+                  tempUserMsg,
+                  finalAssistantMsg
+                ]
+              }
+            };
+          });
 
           if (!isTemporaryChat) {
             get().fetchConversations();

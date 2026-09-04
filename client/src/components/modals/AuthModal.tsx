@@ -2,16 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, 
   Mail, 
-  Check, 
-  ShieldCheck,
-  AlertCircle,
-  KeyRound,
+  Lock, 
+  User, 
+  Sparkles, 
+  AlertCircle, 
+  Loader2, 
   ArrowRight,
-  RefreshCw,
-  Sparkles,
-  User,
-  Lock,
-  Calendar
+  ShieldCheck,
+  CheckCircle2
 } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
 import { api } from '../../services/api';
@@ -19,41 +17,27 @@ import { api } from '../../services/api';
 export const AuthModal: React.FC = () => {
   const { activeModal, setActiveModal, setUser } = useAppStore();
 
-  // Mode: 'signup' or 'login'
-  const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup');
-
-  // Multi-step signup: 'enter_email' -> 'enter_otp' -> 'complete_profile'
-  const [signupStep, setSignupStep] = useState<'enter_email' | 'enter_otp' | 'complete_profile'>('enter_email');
-
-  // Multi-step forgot password: 'enter_email' -> 'enter_otp' -> 'new_password'
-  const [isForgotPassword, setIsForgotPassword] = useState(false);
-  const [forgotStep, setForgotStep] = useState<'enter_email' | 'enter_otp' | 'new_password'>('enter_email');
-  const [receivedOtp, setReceivedOtp] = useState<string | null>(null);
-
-  // Form Fields
+  const [mode, setMode] = useState<'login' | 'signup'>('signup');
+  const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [otpCode, setOtpCode] = useState('');
-  const [displayName, setDisplayName] = useState('');
-  const [age, setAge] = useState('');
-
-  const [error, setError] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  
   const [loading, setLoading] = useState(false);
-  const [countdown, setCountdown] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
-  // Initialize official Google Identity Services button
   useEffect(() => {
     if (activeModal !== 'auth') return;
+    setError(null);
+    setSuccess(null);
 
+    // Official Google Identity Services initialization
     const google = (window as any).google;
     if (google?.accounts?.id && googleBtnRef.current) {
       try {
         const clientId = '726426845811-ibbspi9a7cld4mr126q9nvr4hn8vo9ak.apps.googleusercontent.com';
-
         google.accounts.id.initialize({
           client_id: clientId,
           callback: async (response: any) => {
@@ -74,586 +58,248 @@ export const AuthModal: React.FC = () => {
         });
 
         google.accounts.id.renderButton(googleBtnRef.current, {
-          theme: 'filled_black',
+          theme: 'outline',
           size: 'large',
           shape: 'pill',
-          width: 320
+          width: 340
         });
       } catch (e) {
         console.log('Google Identity Services setup:', e);
       }
     }
-  }, [activeModal, authMode, signupStep]);
-
-  // Resend Countdown
-  useEffect(() => {
-    if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [countdown]);
+  }, [activeModal, mode]);
 
   if (activeModal !== 'auth') return null;
 
-  // 1. Send OTP for Sign Up
-  const handleSendSignupOtp = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !email.includes('@')) {
+    setError(null);
+    setSuccess(null);
+
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
+
+    if (!cleanEmail || !cleanEmail.includes('@') || !cleanEmail.includes('.')) {
       setError('Please enter a valid email address.');
       return;
     }
-    setError(null);
+
+    if (cleanPassword.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+
     setLoading(true);
     try {
-      const res = await api.sendEmailOtp(email.trim().toLowerCase());
-      if (res?.otpHint) {
-        setReceivedOtp(res.otpHint);
-        setOtpCode(res.otpHint);
+      if (mode === 'signup') {
+        const cleanName = displayName.trim() || cleanEmail.split('@')[0];
+        const userProfile = await api.registerEmail(cleanEmail, cleanPassword, cleanName);
+        setUser(userProfile);
+        setSuccess('Account created successfully!');
+        setTimeout(() => setActiveModal(null), 700);
+      } else {
+        const userProfile = await api.loginEmail(cleanEmail, cleanPassword);
+        setUser(userProfile);
+        setSuccess('Signed in successfully!');
+        setTimeout(() => setActiveModal(null), 700);
       }
-      setSignupStep('enter_otp');
-      setSuccessMsg(res?.otpHint
-        ? `Code generated: ${res.otpHint} (Auto-filled below).`
-        : `6-digit verification code sent to ${email}. Please check your email inbox.`);
-      setCountdown(60);
     } catch (err: any) {
-      setError(err.message || 'Failed to send OTP code.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 2. Verify OTP for Sign Up
-  const handleVerifySignupOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (otpCode.trim().length !== 6) {
-      setError('Please enter the full 6-digit OTP code.');
-      return;
-    }
-    setError(null);
-    setLoading(true);
-    try {
-      // Advance to profile name & age setup
-      setSignupStep('complete_profile');
-      setSuccessMsg('Email verified! Please choose your profile name and age.');
-    } catch (err: any) {
-      setError('Invalid or expired OTP code.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 3. Complete Sign Up with Profile Name and Age
-  const handleCompleteSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!displayName.trim()) {
-      setError('Please enter your profile name.');
-      return;
-    }
-    setError(null);
-    setLoading(true);
-    try {
-      const u = await api.verifyEmailOtp(
-        email.trim().toLowerCase(),
-        otpCode.trim(),
-        displayName.trim()
-      );
-      setUser(u);
-      setActiveModal(null);
-    } catch (err: any) {
-      setError(err.message || 'Failed to complete registration.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 4. Handle Direct Log In with Password
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim() || !password) {
-      setError('Please enter your email and password.');
-      return;
-    }
-    setError(null);
-    setLoading(true);
-    try {
-      const u = await api.loginEmail(email.trim().toLowerCase(), password);
-      setUser(u);
-      setActiveModal(null);
-    } catch (err: any) {
-      setError(err.message || 'Invalid email or password.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 5. Handle Forgot Password OTP
-  const handleForgotSendOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim() || !email.includes('@')) {
-      setError('Please enter your registered email address.');
-      return;
-    }
-    setError(null);
-    setLoading(true);
-    try {
-      const res = await api.sendEmailOtp(email.trim().toLowerCase());
-      if (res?.otpHint) {
-        setReceivedOtp(res.otpHint);
-        setOtpCode(res.otpHint);
-      }
-      setForgotStep('enter_otp');
-      setSuccessMsg(res?.otpHint
-        ? `Reset code generated: ${res.otpHint} (Auto-filled below).`
-        : `Reset code sent to ${email}. Please check your email inbox.`);
-      setCountdown(60);
-    } catch (err: any) {
-      setError(err.message || 'Failed to send OTP code.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleForgotVerifyAndReset = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (otpCode.trim().length !== 6) {
-      setError('Please enter the 6-digit OTP code.');
-      return;
-    }
-    setError(null);
-    setLoading(true);
-    try {
-      const u = await api.verifyEmailOtp(email.trim().toLowerCase(), otpCode.trim());
-      setUser(u);
-      setActiveModal(null);
-    } catch (err: any) {
-      setError('Invalid or expired OTP code.');
+      setError(err.message || 'Authentication failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in select-none">
-      <div className="w-full max-w-md rounded-3xl bg-[var(--bg-surface)] border border-[var(--border-medium)] shadow-2xl overflow-hidden text-xs">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in select-none">
+      <div className="w-full max-w-md rounded-3xl bg-[var(--bg-surface)] border border-[var(--border-medium)] shadow-2xl overflow-hidden transition-colors">
+        
         {/* Top Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)] bg-[var(--bg-main)]">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-500 flex items-center justify-center text-white shadow-md">
-              <Sparkles className="w-4 h-4" />
-            </div>
+        <div className="flex items-center justify-between p-6 pb-4 border-b border-[var(--border-subtle)]">
+          <div className="flex items-center gap-3">
+            <img 
+              src="/assets/guts-logo.png" 
+              alt="Guts AI" 
+              className="w-8 h-8 rounded-xl object-cover shadow-sm ring-1 ring-red-500/20" 
+            />
             <div>
-              <h2 className="text-sm font-bold text-[var(--text-primary)]">
-                {isForgotPassword ? 'Reset Password' : authMode === 'signup' ? 'Create your account' : 'Welcome back'}
+              <h2 className="text-sm font-bold text-[var(--text-main)]">
+                {mode === 'signup' ? 'Create your Guts AI account' : 'Welcome back to Guts AI'}
               </h2>
               <p className="text-[11px] text-[var(--text-muted)]">
-                {isForgotPassword ? 'Verify code and set password' : authMode === 'signup' ? 'Sign up to sync your chats' : 'Sign in to your Guts AI account'}
+                {mode === 'signup' ? 'Sign up to sync your chats & custom models' : 'Enter your email and password to sign in'}
               </p>
             </div>
           </div>
           <button
             onClick={() => setActiveModal(null)}
-            className="p-1.5 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-sidebar-hover)] transition cursor-pointer"
+            className="p-1.5 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-sidebar-hover)] transition cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Modal Body */}
-        <div className="p-6 space-y-5">
-          {/* Error Message */}
+        {/* Tab Switcher */}
+        <div className="px-6 pt-4">
+          <div className="flex rounded-2xl bg-[var(--bg-sidebar-hover)] p-1 border border-[var(--border-subtle)]">
+            <button
+              type="button"
+              onClick={() => {
+                setMode('signup');
+                setError(null);
+                setSuccess(null);
+              }}
+              className={`flex-1 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                mode === 'signup'
+                  ? 'bg-[var(--bg-main)] text-[var(--text-main)] shadow-xs'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
+              }`}
+            >
+              Sign Up
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode('login');
+                setError(null);
+                setSuccess(null);
+              }}
+              className={`flex-1 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                mode === 'login'
+                  ? 'bg-[var(--bg-main)] text-[var(--text-main)] shadow-xs'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
+              }`}
+            >
+              Sign In
+            </button>
+          </div>
+        </div>
+
+        {/* Form Body */}
+        <div className="p-6 space-y-4">
+          {/* Error Banner */}
           {error && (
-            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-start gap-2 animate-in fade-in">
+            <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs flex items-start gap-2 animate-in fade-in">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span className="text-xs leading-relaxed">{error}</span>
+              <span className="leading-relaxed">{error}</span>
             </div>
           )}
 
-          {/* Success Message */}
-          {successMsg && !error && (
-            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-start gap-2 animate-in fade-in">
-              <Check className="w-4 h-4 shrink-0 mt-0.5" />
-              <span className="text-xs leading-relaxed font-mono">{successMsg}</span>
+          {/* Success Banner */}
+          {success && (
+            <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs flex items-start gap-2 animate-in fade-in">
+              <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{success}</span>
             </div>
           )}
 
-          {/* ⚡ Quick 1-Click Sign In as Huzaifa Rajput */}
-          <button
-            type="button"
-            onClick={() => {
-              const defaultUser = {
-                id: 'user_huzaifa_rajput',
-                email: 'huzaifa@local.ai',
-                displayName: 'Huzaifa Rajput',
-                username: 'huzaifa',
-                isLoggedIn: true,
-                picture: ''
-              };
-              setUser(defaultUser as any);
-              localStorage.setItem('local_ai_user', JSON.stringify(defaultUser));
-              setActiveModal(null);
-            }}
-            className="w-full py-2.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25 font-semibold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-sm group"
-          >
-            <Sparkles className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
-            <span>⚡ Quick Sign In as Huzaifa Rajput (Instant 1-Click)</span>
-          </button>
-
-          {/* ------------------------------------------------------------- */}
-          {/* CASE A: FORGOT PASSWORD FLOW */}
-          {/* ------------------------------------------------------------- */}
-          {isForgotPassword ? (
-            forgotStep === 'enter_email' ? (
-              <form onSubmit={handleForgotSendOtp} className="space-y-3">
-                <div>
-                  <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
-                    Enter your email to receive a 6-digit OTP code
-                  </label>
-                  <input
-                    type="email"
-                    placeholder="name@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading || !email.trim()}
-                  className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition cursor-pointer"
-                >
-                  {loading ? <RefreshCw className="w-4 h-4 animate-spin mx-auto" /> : 'Send 6-Digit OTP'}
-                </button>
-
-                <div className="text-center pt-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsForgotPassword(false);
-                      setError(null);
-                    }}
-                    className="text-indigo-400 hover:underline cursor-pointer"
-                  >
-                    Back to Log in
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <form onSubmit={handleForgotVerifyAndReset} className="space-y-3">
-                {receivedOtp && (
-                  <button
-                    type="button"
-                    onClick={() => setOtpCode(receivedOtp)}
-                    className="w-full py-2 px-3 rounded-xl bg-indigo-500/15 border border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/25 text-xs font-mono flex items-center justify-center gap-2 transition cursor-pointer mb-2"
-                  >
-                    <KeyRound className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>🔑 Code: <strong>{receivedOtp}</strong> (Click to auto-fill)</span>
-                  </button>
-                )}
-
-                <div>
-                  <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
-                    Enter 6-digit code sent to {email}
-                  </label>
+          <form onSubmit={handleSubmit} className="space-y-3.5">
+            {/* Display Name (Only in Sign Up mode) */}
+            {mode === 'signup' && (
+              <div>
+                <label className="block text-[11px] font-medium text-[var(--text-sub)] mb-1">
+                  Full Name
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
                   <input
                     type="text"
-                    maxLength={6}
-                    placeholder="123456"
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                    className="w-full px-3 py-2 rounded-xl bg-[var(--bg-main)] border border-indigo-500/50 text-[var(--text-primary)] font-mono text-center tracking-widest text-sm font-bold focus:outline-none"
-                    autoFocus
                     required
+                    placeholder="e.g. Alex Johnson"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-[var(--bg-input)] border border-[var(--border-input)] text-[var(--text-main)] text-xs placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-color)] transition"
                   />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading || otpCode.trim().length !== 6}
-                  className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition cursor-pointer"
-                >
-                  {loading ? <RefreshCw className="w-4 h-4 animate-spin mx-auto" /> : 'Verify Code & Log in'}
-                </button>
-              </form>
-            )
-          ) : authMode === 'signup' ? (
-            /* ------------------------------------------------------------- */
-            /* CASE B: SIGN UP FLOW (Google OR Email -> OTP -> Name & Age)   */
-            /* ------------------------------------------------------------- */
-            signupStep === 'enter_email' ? (
-              <div className="space-y-4">
-                {/* 1. Google Account Option */}
-                <div className="space-y-2">
-                  <div className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider text-center">
-                    Continue with Google
-                  </div>
-                  <div className="flex justify-center py-1">
-                    <div ref={googleBtnRef} className="min-h-[44px] flex items-center justify-center" />
-                  </div>
-                </div>
-
-                {/* Divider */}
-                <div className="flex items-center gap-3 py-1">
-                  <div className="h-[1px] flex-1 bg-[var(--border-subtle)]" />
-                  <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] tracking-wider">
-                    Or with email
-                  </span>
-                  <div className="h-[1px] flex-1 bg-[var(--border-subtle)]" />
-                </div>
-
-                {/* 2. Email Address Input */}
-                <form onSubmit={handleSendSignupOtp} className="space-y-3">
-                  <div>
-                    <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
-                      Email address
-                    </label>
-                    <div className="relative">
-                      <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-                      <input
-                        type="email"
-                        placeholder="name@example.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                        className="w-full pl-9 pr-3 py-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs focus:border-indigo-500 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={loading || !email.trim()}
-                    className="w-full py-2.5 rounded-xl bg-white hover:bg-slate-200 text-black font-semibold text-xs transition cursor-pointer"
-                  >
-                    {loading ? <RefreshCw className="w-4 h-4 animate-spin mx-auto" /> : 'Continue'}
-                  </button>
-                </form>
-
-                {/* Switch to Log in */}
-                <div className="text-center pt-1 text-[11px] text-[var(--text-muted)]">
-                  Already have an account?{' '}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthMode('login');
-                      setError(null);
-                      setSuccessMsg(null);
-                    }}
-                    className="text-indigo-400 font-semibold hover:underline cursor-pointer"
-                  >
-                    Log in
-                  </button>
                 </div>
               </div>
-            ) : signupStep === 'enter_otp' ? (
-              /* Step 2: 6-Digit OTP */
-              <form onSubmit={handleVerifySignupOtp} className="space-y-3 animate-in fade-in">
-                <div className="flex items-center justify-between text-[11px] text-[var(--text-muted)]">
-                  <span>Code sent to: <strong>{email}</strong></span>
-                  <button
-                    type="button"
-                    onClick={() => setSignupStep('enter_email')}
-                    className="text-indigo-400 hover:underline cursor-pointer"
-                  >
-                    Edit
-                  </button>
-                </div>
+            )}
 
-                {receivedOtp && (
-                  <button
-                    type="button"
-                    onClick={() => setOtpCode(receivedOtp)}
-                    className="w-full py-2 px-3 rounded-xl bg-indigo-500/15 border border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/25 text-xs font-mono flex items-center justify-center gap-2 transition cursor-pointer mb-2"
-                  >
-                    <KeyRound className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>🔑 Code: <strong>{receivedOtp}</strong> (Click to auto-fill)</span>
-                  </button>
-                )}
-
-                <div>
-                  <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
-                    Enter 6-digit code
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={6}
-                    placeholder="123456"
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                    className="w-full px-3 py-2 rounded-xl bg-[var(--bg-main)] border border-indigo-500 text-[var(--text-primary)] font-mono text-center tracking-widest text-base font-bold focus:outline-none"
-                    autoFocus
-                    required
-                  />
-                </div>
-
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-[var(--text-muted)]">
-                    {countdown > 0 ? `Resend in ${countdown}s` : "Didn't receive code?"}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={countdown > 0 || loading}
-                    onClick={handleSendSignupOtp}
-                    className="text-indigo-400 disabled:opacity-40 hover:underline cursor-pointer"
-                  >
-                    Resend code
-                  </button>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading || otpCode.trim().length !== 6}
-                  className="w-full py-2.5 rounded-xl bg-white hover:bg-slate-200 text-black font-semibold text-xs transition cursor-pointer mt-2"
-                >
-                  Continue
-                </button>
-              </form>
-            ) : (
-              /* Step 3: Choose Profile Name & Age (Audio 5 Requirement) */
-              <form onSubmit={handleCompleteSignup} className="space-y-3 animate-in fade-in">
-                <div>
-                  <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
-                    Choose your profile name *
-                  </label>
-                  <div className="relative">
-                    <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-                    <input
-                      type="text"
-                      placeholder="e.g. huzaifa rajput"
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      required
-                      autoFocus
-                      className="w-full pl-9 pr-3 py-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs focus:border-indigo-500 focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
-                    Your Age / Birthday (Optional)
-                  </label>
-                  <div className="relative">
-                    <Calendar className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-                    <input
-                      type="number"
-                      placeholder="e.g. 21"
-                      value={age}
-                      onChange={(e) => setAge(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs focus:border-indigo-500 focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading || !displayName.trim()}
-                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-xs shadow-md transition cursor-pointer mt-2"
-                >
-                  {loading ? <RefreshCw className="w-4 h-4 animate-spin mx-auto" /> : 'Complete & Create Account'}
-                </button>
-              </form>
-            )
-          ) : (
-            /* ------------------------------------------------------------- */
-            /* CASE C: LOG IN FLOW (Google OR Email + Password)              */
-            /* ------------------------------------------------------------- */
-            <div className="space-y-4">
-              {/* 1. Google Option */}
-              <div className="space-y-2">
-                <div className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider text-center">
-                  Continue with Google
-                </div>
-                <div className="flex justify-center py-1">
-                  <div ref={googleBtnRef} className="min-h-[44px] flex items-center justify-center" />
-                </div>
-              </div>
-
-              {/* Divider */}
-              <div className="flex items-center gap-3 py-1">
-                <div className="h-[1px] flex-1 bg-[var(--border-subtle)]" />
-                <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] tracking-wider">
-                  Or with password
-                </span>
-                <div className="h-[1px] flex-1 bg-[var(--border-subtle)]" />
-              </div>
-
-              {/* 2. Email + Password Form */}
-              <form onSubmit={handleLogin} className="space-y-3">
-                <div>
-                  <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
-                    Email address
-                  </label>
-                  <input
-                    type="email"
-                    placeholder="name@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-[11px] font-medium text-[var(--text-secondary)]">
-                      Password
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsForgotPassword(true);
-                        setForgotStep('enter_email');
-                        setError(null);
-                      }}
-                      className="text-[10px] text-indigo-400 hover:underline cursor-pointer"
-                    >
-                      Forgot password?
-                    </button>
-                  </div>
-                  <input
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading || !email.trim() || !password}
-                  className="w-full py-2.5 rounded-xl bg-white hover:bg-slate-200 text-black font-semibold text-xs transition cursor-pointer mt-1"
-                >
-                  {loading ? <RefreshCw className="w-4 h-4 animate-spin mx-auto" /> : 'Log In'}
-                </button>
-              </form>
-
-              {/* Switch to Sign Up */}
-              <div className="text-center pt-1 text-[11px] text-[var(--text-muted)]">
-                Don't have an account?{' '}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAuthMode('signup');
-                    setSignupStep('enter_email');
-                    setError(null);
-                    setSuccessMsg(null);
-                  }}
-                  className="text-indigo-400 font-semibold hover:underline cursor-pointer"
-                >
-                  Sign up
-                </button>
+            {/* Email Field */}
+            <div>
+              <label className="block text-[11px] font-medium text-[var(--text-sub)] mb-1">
+                Email Address
+              </label>
+              <div className="relative">
+                <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                <input
+                  type="email"
+                  required
+                  placeholder="name@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-[var(--bg-input)] border border-[var(--border-input)] text-[var(--text-main)] text-xs placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-color)] transition"
+                />
               </div>
             </div>
-          )}
 
-          {/* Privacy Footnote */}
-          <div className="pt-2 flex items-center justify-center gap-1.5 text-[10px] text-[var(--text-muted)]">
+            {/* Password Field */}
+            <div>
+              <label className="block text-[11px] font-medium text-[var(--text-sub)] mb-1">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-[var(--bg-input)] border border-[var(--border-input)] text-[var(--text-main)] text-xs placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-color)] transition"
+                />
+              </div>
+              <span className="text-[10px] text-[var(--text-muted)] mt-1 block">
+                Must be at least 6 characters.
+              </span>
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-md disabled:opacity-50 mt-2"
+            >
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  <span>{mode === 'signup' ? 'Create Account' : 'Sign In'}</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Google Sign In Divider */}
+          <div className="relative flex items-center justify-center py-2">
+            <div className="w-full border-t border-[var(--border-subtle)]" />
+            <span className="absolute bg-[var(--bg-surface)] px-2 text-[10px] text-[var(--text-muted)] uppercase tracking-wider">
+              Or continue with
+            </span>
+          </div>
+
+          {/* Google Button Container */}
+          <div className="flex justify-center pt-1" ref={googleBtnRef}>
+            <button
+              type="button"
+              onClick={() => {
+                setError('Please click the official Google prompt or sign up with email and password.');
+              }}
+              className="w-full py-2 px-4 rounded-xl bg-[var(--bg-card)] hover:bg-[var(--bg-sidebar-hover)] border border-[var(--border-input)] text-[var(--text-main)] text-xs font-medium flex items-center justify-center gap-2.5 transition cursor-pointer"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+              </svg>
+              <span>Continue with Google</span>
+            </button>
+          </div>
+
+          <div className="pt-2 text-center text-[10px] text-[var(--text-muted)] flex items-center justify-center gap-1.5">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Encrypted local database on your SSD. 100% private.</span>
+            <span>Private database on your local hardware. 100% encrypted.</span>
           </div>
         </div>
       </div>

@@ -495,9 +495,9 @@ export const MessageInput: React.FC = () => {
                   <ChevronDown className="w-3 h-3 text-[var(--text-muted)]" />
                 </button>
 
-                {/* Model & Thinking Effort Dropdown Menu (Floats above input, never cut off) */}
+                {/* Model & Thinking Effort Dropdown Menu (Opens downwards as requested) */}
                 {modelMenuOpen && (
-                  <div className="absolute right-0 bottom-full mb-2 w-80 max-h-[380px] overflow-y-auto rounded-2xl bg-[var(--bg-surface-elevated)] border border-[var(--border-medium)] shadow-2xl p-2 z-50 text-xs animate-in fade-in slide-in-from-bottom-2 space-y-1">
+                  <div className="absolute right-0 top-full mt-2 w-80 max-h-[380px] overflow-y-auto rounded-2xl bg-[var(--bg-surface-elevated)] border border-[var(--border-medium)] shadow-2xl p-2 z-50 text-xs animate-in fade-in slide-in-from-top-2 space-y-1">
                     {/* Models List */}
                     <div className="space-y-0.5">
                       {allModels.map((m) => {
