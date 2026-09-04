@@ -78,7 +78,7 @@ export const ChatContainer: React.FC = () => {
                 className="w-10 h-10 rounded-2xl object-cover shadow-lg ring-1 ring-red-500/30"
               />
               <h1 className="text-3xl sm:text-4xl font-serif font-medium text-[var(--text-main)] tracking-tight">
-                {user ? `Good ${new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, ${user.displayName || user.username.split('@')[0]}` : "Where should we begin?"}
+                {`Good ${new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, ${user?.displayName || user?.username?.split('@')[0] || 'Huzaifa Rajput'}`}
               </h1>
             </div>
 

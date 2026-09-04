@@ -33,6 +33,7 @@ export const VoiceModeModal: React.FC = () => {
 
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const [spokenText, setSpokenText] = useState('');
   const [typeInput, setTypeInput] = useState('');
   const [voiceStatus, setVoiceStatus] = useState<'idle' | 'listening' | 'thinking' | 'speaking'>('idle');
   const [attachments, setAttachments] = useState<AttachedFile[]>([]);
@@ -42,9 +43,41 @@ export const VoiceModeModal: React.FC = () => {
   const silenceTimerRef = useRef<any>(null);
   const accumulatedStreamRef = useRef<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const ttsWatchdogRef = useRef<any>(null);
+
+  // Play pleasant chime and unlock browser AudioContext / SpeechSynthesis
+  const playChimeAndUnlock = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtx) {
+        const ctx = new AudioCtx();
+        if (ctx.state === 'suspended') {
+          ctx.resume();
+        }
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+        osc.frequency.exponentialRampToValueAtTime(783.99, ctx.currentTime + 0.12); // G5
+        gain.gain.setValueAtTime(0.12, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.22);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.22);
+      }
+    } catch (e) {
+      console.log('AudioContext chime error:', e);
+    }
+
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.resume();
+    }
+  };
 
   // Interruption helper: stops TTS playback immediately
   const interruptSpeaking = () => {
+    if (ttsWatchdogRef.current) clearTimeout(ttsWatchdogRef.current);
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
@@ -175,9 +208,21 @@ export const VoiceModeModal: React.FC = () => {
 
       // Prevent garbage collection bug in Chrome on Windows
       (window as any)._activeUtterance = utterance;
+      setSpokenText(cleanText);
       setVoiceStatus('speaking');
 
+      // Watchdog timer: If Chrome gets stuck, auto recover after estimated spoken duration
+      const estimatedDurationMs = Math.max(7000, (cleanText.length / 15) * 1000);
+      if (ttsWatchdogRef.current) clearTimeout(ttsWatchdogRef.current);
+      ttsWatchdogRef.current = setTimeout(() => {
+        console.log('TTS watchdog auto-recovering...');
+        (window as any)._activeUtterance = null;
+        setVoiceStatus('idle');
+        startListening();
+      }, estimatedDurationMs);
+
       utterance.onend = () => {
+        if (ttsWatchdogRef.current) clearTimeout(ttsWatchdogRef.current);
         (window as any)._activeUtterance = null;
         setVoiceStatus('idle');
         // Auto-listen after AI finishes speaking
@@ -185,6 +230,7 @@ export const VoiceModeModal: React.FC = () => {
       };
 
       utterance.onerror = (e) => {
+        if (ttsWatchdogRef.current) clearTimeout(ttsWatchdogRef.current);
         console.warn('Speech synthesis error:', e);
         (window as any)._activeUtterance = null;
         setVoiceStatus('idle');
@@ -372,6 +418,7 @@ export const VoiceModeModal: React.FC = () => {
           {/* Authentic Fluid Morphing Orb Button (ChatGPT Voice Orb Match) */}
           <button
             onClick={() => {
+              playChimeAndUnlock();
               if (voiceStatus === 'speaking') {
                 interruptSpeaking();
                 startListening();
@@ -405,6 +452,12 @@ export const VoiceModeModal: React.FC = () => {
             </div>
           )}
 
+          {voiceStatus === 'speaking' && spokenText && (
+            <div className="text-sm font-medium text-purple-200 animate-in fade-in px-4 leading-relaxed max-h-24 overflow-y-auto">
+              "{spokenText}"
+            </div>
+          )}
+
           {voiceStatus === 'thinking' && !transcript && (
             <div className="flex items-center justify-center gap-2 text-xs font-semibold text-neutral-400">
               <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-400" />
@@ -412,14 +465,14 @@ export const VoiceModeModal: React.FC = () => {
             </div>
           )}
 
-          {voiceStatus === 'speaking' && (
+          {voiceStatus === 'speaking' && !spokenText && (
             <div className="text-xs text-neutral-400 flex items-center justify-center gap-1.5 animate-in fade-in">
               <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
               <span>AI speaking (Tap orb or speak to interrupt)</span>
             </div>
           )}
 
-          {voiceStatus === 'idle' && !transcript && (
+          {voiceStatus === 'idle' && !transcript && !spokenText && (
             <div className="text-xs text-neutral-500">
               Tap orb to speak or type your question below
             </div>

@@ -7,6 +7,8 @@ export interface UserProfile {
   avatar: string;
   token?: string;
   createdAt?: string;
+  isLoggedIn?: boolean;
+  picture?: string;
 }
 
 export interface CitationItem {

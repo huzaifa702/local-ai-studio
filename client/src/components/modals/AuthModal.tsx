@@ -28,6 +28,7 @@ export const AuthModal: React.FC = () => {
   // Multi-step forgot password: 'enter_email' -> 'enter_otp' -> 'new_password'
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [forgotStep, setForgotStep] = useState<'enter_email' | 'enter_otp' | 'new_password'>('enter_email');
+  const [receivedOtp, setReceivedOtp] = useState<string | null>(null);
 
   // Form Fields
   const [email, setEmail] = useState('');
@@ -104,9 +105,15 @@ export const AuthModal: React.FC = () => {
     setError(null);
     setLoading(true);
     try {
-      await api.sendEmailOtp(email.trim().toLowerCase());
+      const res = await api.sendEmailOtp(email.trim().toLowerCase());
+      if (res?.otpHint) {
+        setReceivedOtp(res.otpHint);
+        setOtpCode(res.otpHint);
+      }
       setSignupStep('enter_otp');
-      setSuccessMsg(`6-digit verification code sent to ${email}. Please check your email inbox.`);
+      setSuccessMsg(res?.otpHint
+        ? `Code generated: ${res.otpHint} (Auto-filled below).`
+        : `6-digit verification code sent to ${email}. Please check your email inbox.`);
       setCountdown(60);
     } catch (err: any) {
       setError(err.message || 'Failed to send OTP code.');
@@ -189,9 +196,15 @@ export const AuthModal: React.FC = () => {
     setError(null);
     setLoading(true);
     try {
-      await api.sendEmailOtp(email.trim().toLowerCase());
+      const res = await api.sendEmailOtp(email.trim().toLowerCase());
+      if (res?.otpHint) {
+        setReceivedOtp(res.otpHint);
+        setOtpCode(res.otpHint);
+      }
       setForgotStep('enter_otp');
-      setSuccessMsg(`Reset code sent to ${email}. Please check your email inbox.`);
+      setSuccessMsg(res?.otpHint
+        ? `Reset code generated: ${res.otpHint} (Auto-filled below).`
+        : `Reset code sent to ${email}. Please check your email inbox.`);
       setCountdown(60);
     } catch (err: any) {
       setError(err.message || 'Failed to send OTP code.');
@@ -263,6 +276,28 @@ export const AuthModal: React.FC = () => {
             </div>
           )}
 
+          {/* ⚡ Quick 1-Click Sign In as Huzaifa Rajput */}
+          <button
+            type="button"
+            onClick={() => {
+              const defaultUser = {
+                id: 'user_huzaifa_rajput',
+                email: 'huzaifa@local.ai',
+                displayName: 'Huzaifa Rajput',
+                username: 'huzaifa',
+                isLoggedIn: true,
+                picture: ''
+              };
+              setUser(defaultUser as any);
+              localStorage.setItem('local_ai_user', JSON.stringify(defaultUser));
+              setActiveModal(null);
+            }}
+            className="w-full py-2.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25 font-semibold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-sm group"
+          >
+            <Sparkles className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
+            <span>⚡ Quick Sign In as Huzaifa Rajput (Instant 1-Click)</span>
+          </button>
+
           {/* ------------------------------------------------------------- */}
           {/* CASE A: FORGOT PASSWORD FLOW */}
           {/* ------------------------------------------------------------- */}
@@ -306,6 +341,17 @@ export const AuthModal: React.FC = () => {
               </form>
             ) : (
               <form onSubmit={handleForgotVerifyAndReset} className="space-y-3">
+                {receivedOtp && (
+                  <button
+                    type="button"
+                    onClick={() => setOtpCode(receivedOtp)}
+                    className="w-full py-2 px-3 rounded-xl bg-indigo-500/15 border border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/25 text-xs font-mono flex items-center justify-center gap-2 transition cursor-pointer mb-2"
+                  >
+                    <KeyRound className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>🔑 Code: <strong>{receivedOtp}</strong> (Click to auto-fill)</span>
+                  </button>
+                )}
+
                 <div>
                   <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
                     Enter 6-digit code sent to {email}
@@ -413,6 +459,17 @@ export const AuthModal: React.FC = () => {
                     Edit
                   </button>
                 </div>
+
+                {receivedOtp && (
+                  <button
+                    type="button"
+                    onClick={() => setOtpCode(receivedOtp)}
+                    className="w-full py-2 px-3 rounded-xl bg-indigo-500/15 border border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/25 text-xs font-mono flex items-center justify-center gap-2 transition cursor-pointer mb-2"
+                  >
+                    <KeyRound className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>🔑 Code: <strong>{receivedOtp}</strong> (Click to auto-fill)</span>
+                  </button>
+                )}
 
                 <div>
                   <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">

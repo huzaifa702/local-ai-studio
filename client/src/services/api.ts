@@ -78,7 +78,7 @@ export const api = {
     return data;
   },
 
-  async sendEmailOtp(email: string): Promise<{ success: boolean; message: string; otpCode?: string }> {
+  async sendEmailOtp(email: string): Promise<{ success: boolean; message: string; otpCode?: string; otpHint?: string }> {
     const res = await fetch(`${API_BASE}/auth/email/send-otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

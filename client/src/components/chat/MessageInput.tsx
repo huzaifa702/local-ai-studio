@@ -37,7 +37,8 @@ export const MessageInput: React.FC = () => {
     thinkEnabled, 
     toggleSearch, 
     toggleThink, 
-    setActiveModal 
+    setActiveModal,
+    settings
   } = useAppStore();
 
   const [input, setInput] = useState('');
@@ -193,34 +194,62 @@ export const MessageInput: React.FC = () => {
 
   const hasContent = input.trim().length > 0 || attachments.length > 0;
 
-  // Available models list matching exact screenshot options
+  // Available models list matching exact screenshot options & Cloud models
   const modelsList = [
     {
       id: 'ox-alpha',
       name: 'OX-Alpha (Omni)',
+      provider: 'ollama' as const,
       subtitle: 'Most efficient for everyday tasks & auto-routes vision/code',
-      badge: null,
+      badge: 'Auto',
       isDefault: true
     },
     {
-      id: 'deepseek-r1:7b',
-      name: 'DeepSeek-R1 (Reasoning)',
-      subtitle: 'For your toughest challenges & deep thinking',
-      badge: 'Reasoning',
+      id: 'llama3.2:3b',
+      name: 'Llama 3.2 (Fast)',
+      provider: 'ollama' as const,
+      subtitle: 'Fastest local model for quick answers & conversation',
+      badge: 'Local',
       isDefault: false
     },
     {
       id: 'qwen2.5-coder:7b',
       name: 'Qwen 2.5 Coder',
+      provider: 'ollama' as const,
       subtitle: 'For complex programming & refactoring tasks',
       badge: 'Code Pro',
       isDefault: false
     },
     {
-      id: 'llama3.2:3b',
-      name: 'Llama 3.2 (Fast)',
-      subtitle: 'Fastest for quick answers & conversation',
-      badge: null,
+      id: 'deepseek-r1:7b',
+      name: 'DeepSeek-R1 (Reasoning)',
+      provider: 'ollama' as const,
+      subtitle: 'For your toughest challenges & deep thinking',
+      badge: 'Reasoning',
+      isDefault: false
+    },
+    {
+      id: 'llama-3.3-70b-versatile',
+      name: 'Groq Llama 3.3',
+      provider: 'groq' as const,
+      subtitle: '300 tok/s blazing cloud speed via Groq LPU',
+      badge: '300 t/s ⚡',
+      isDefault: false
+    },
+    {
+      id: 'gpt-4o',
+      name: 'OpenAI GPT-4o',
+      provider: 'openai' as const,
+      subtitle: 'Multimodal intelligence & high precision reasoning',
+      badge: 'Cloud',
+      isDefault: false
+    },
+    {
+      id: 'gemini-1.5-flash',
+      name: 'Gemini 1.5 Flash',
+      provider: 'gemini' as const,
+      subtitle: 'Google DeepMind 1M context window model',
+      badge: 'Cloud',
       isDefault: false
     }
   ];
@@ -448,7 +477,7 @@ export const MessageInput: React.FC = () => {
                           <button
                             key={m.id}
                             onClick={() => {
-                              setSelectedModel(m.id, 'ollama');
+                              setSelectedModel(m.id, m.provider);
                               if (m.id === 'deepseek-r1:7b') {
                                 if (!thinkEnabled) toggleThink();
                               }

@@ -89,8 +89,18 @@ interface AppState {
   logout: () => void;
 }
 
+const defaultUserProfile: UserProfile = {
+  id: 'user_huzaifa_rajput',
+  email: 'huzaifa@local.ai',
+  displayName: 'Huzaifa Rajput',
+  username: 'huzaifa',
+  avatar: '',
+  isLoggedIn: true,
+  picture: ''
+};
+
 export const useAppStore = create<AppState>((set, get) => ({
-  user: null,
+  user: defaultUserProfile,
   settings: {
     theme: 'dark',
     defaultModel: 'llama3.2:3b',
@@ -190,6 +200,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   setUser: (user) => {
     set({ user });
     if (user?.token) localStorage.setItem('localai_token', user.token);
+    if (user) {
+      localStorage.setItem('local_ai_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('local_ai_user');
+    }
     // Reload user-scoped data
     get().fetchConversations();
     get().fetchProjects();
@@ -198,6 +213,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   logout: () => {
     api.logout();
+    localStorage.removeItem('local_ai_user');
     set({ 
       user: null, 
       conversations: [], 
@@ -211,12 +227,27 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   initApp: async () => {
     try {
-      const [user, settings] = await Promise.all([
+      const [remoteUser, settings] = await Promise.all([
         api.getCurrentUser().catch(() => null),
         api.getSettings().catch(() => null)
       ]);
 
-      if (user) set({ user });
+      if (remoteUser) {
+        set({ user: remoteUser });
+        localStorage.setItem('local_ai_user', JSON.stringify(remoteUser));
+      } else {
+        const saved = localStorage.getItem('local_ai_user');
+        if (saved) {
+          try {
+            set({ user: JSON.parse(saved) });
+          } catch {
+            set({ user: defaultUserProfile });
+          }
+        } else {
+          set({ user: defaultUserProfile });
+        }
+      }
+
       if (settings) {
         set({ settings, selectedModel: settings.defaultModel || 'llama3.2:3b' });
       }

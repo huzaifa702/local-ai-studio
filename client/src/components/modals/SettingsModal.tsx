@@ -171,11 +171,38 @@ export const SettingsModal: React.FC = () => {
   };
   const [shortcuts, setShortcuts] = useState(defaultShortcuts);
 
+  // 7. API Keys & Cloud Models States
+  const [groqKey, setGroqKey] = useState(settings.apiKeys?.groq || '');
+  const [openaiKey, setOpenaiKey] = useState(settings.apiKeys?.openai || '');
+  const [geminiKey, setGeminiKey] = useState(settings.apiKeys?.gemini || '');
+  const [anthropicKey, setAnthropicKey] = useState(settings.apiKeys?.anthropic || '');
+  const [openrouterKey, setOpenrouterKey] = useState(settings.apiKeys?.openrouter || '');
+  const [defaultModelChoice, setDefaultModelChoice] = useState(settings.defaultModel || 'llama3.2:3b');
+  const [keysSaved, setKeysSaved] = useState(false);
+
+  const handleSaveApiKeys = async () => {
+    const updatedKeys = {
+      ...(settings.apiKeys || {}),
+      groq: groqKey.trim(),
+      openai: openaiKey.trim(),
+      gemini: geminiKey.trim(),
+      anthropic: anthropicKey.trim(),
+      openrouter: openrouterKey.trim()
+    };
+    await updateSettings({ 
+      apiKeys: updatedKeys,
+      defaultModel: defaultModelChoice 
+    });
+    setKeysSaved(true);
+    setTimeout(() => setKeysSaved(false), 2500);
+  };
+
   if (activeModal !== 'settings') return null;
 
-  // EXACT 8 OPTIONS AS SPECIFIED BY THE USER
+  // Tabs List with API Keys & Models
   const tabsList = [
     { id: 'general', label: 'General', icon: SettingsIcon },
+    { id: 'models_keys', label: 'API Keys & Models', icon: Sparkles },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'personalization', label: 'Personalization', icon: Clock },
     { id: 'voice', label: 'Voice', icon: Volume2 },
@@ -375,6 +402,214 @@ export const SettingsModal: React.FC = () => {
                       checked={enableDictation}
                       onChange={(e) => handleEnableDictationChange(e.target.checked)}
                       className="w-4 h-4 accent-blue-500 cursor-pointer"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ------------------------------------------------------------- */}
+            {/* API KEYS & CLOUD MODELS TAB */}
+            {/* ------------------------------------------------------------- */}
+            {activeTab === 'models_keys' && (
+              <div className="space-y-5 animate-in fade-in">
+                <div className="flex items-center justify-between border-b border-[#262626] pb-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-indigo-400" />
+                      <span>API Keys & Cloud Intelligence</span>
+                    </h3>
+                    <p className="text-[11px] text-[#8e8e8e] mt-0.5">
+                      Connect ultra-fast cloud providers (Groq 300+ tok/s, OpenAI, Google Gemini, Anthropic) or run 100% offline with Ollama.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleSaveApiKeys}
+                    className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs flex items-center gap-1.5 transition cursor-pointer shadow-md"
+                  >
+                    {keysSaved ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-white" />
+                        <span>Saved!</span>
+                      </>
+                    ) : (
+                      <span>Save Changes</span>
+                    )}
+                  </button>
+                </div>
+
+                {/* Preferred Default Model Selector */}
+                <div className="p-4 rounded-2xl bg-[#121212] border border-[#2a2a2a] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-xs font-medium text-white">Default Assistant Model</div>
+                      <div className="text-[11px] text-[#737373]">Primary model used for new conversations</div>
+                    </div>
+                    <select
+                      value={defaultModelChoice}
+                      onChange={(e) => setDefaultModelChoice(e.target.value)}
+                      className="px-3 py-1.5 rounded-xl bg-[#262626] border border-[#383838] text-xs text-white focus:outline-none cursor-pointer"
+                    >
+                      <option value="llama3.2:3b">⚡ Llama 3.2 3B (Local Ultra-Fast)</option>
+                      <option value="ox-alpha">🌟 OX-Alpha (Auto-Smart Omni)</option>
+                      <option value="qwen2.5-coder:7b">💻 Qwen 2.5 Coder 7B (Local Coding)</option>
+                      <option value="deepseek-r1:7b">🧠 DeepSeek-R1 7B (Local Reasoning)</option>
+                      <option value="llama-3.3-70b-versatile">🚀 Groq Llama 3.3 70B (300 tok/s Cloud)</option>
+                      <option value="gpt-4o">✨ OpenAI GPT-4o (Cloud Multimodal)</option>
+                      <option value="gemini-1.5-flash">🌐 Google Gemini 1.5 Flash (Cloud 1M Context)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Cloud API Keys Grid */}
+                <div className="space-y-3.5 pt-1">
+                  {/* 1. Groq */}
+                  <div className="p-3.5 rounded-2xl bg-[#121212] border border-[#262626] space-y-1.5 hover:border-[#383838] transition">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-xs text-amber-400">Groq Cloud</span>
+                        <span className="px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 text-[9px] font-bold">
+                          300 tok/s
+                        </span>
+                      </div>
+                      <a
+                        href="https://console.groq.com/keys"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[10px] text-indigo-400 hover:underline"
+                      >
+                        Get Free Key &rarr;
+                      </a>
+                    </div>
+                    <p className="text-[11px] text-[#737373]">
+                      Ultra-fast LPUs for instant reasoning, Llama 3.3 70B Versatile, and Mixtral 8x7B.
+                    </p>
+                    <input
+                      type="password"
+                      placeholder="gsk_..."
+                      value={groqKey}
+                      onChange={(e) => setGroqKey(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-[#1e1e1e] border border-[#333333] text-xs text-white font-mono placeholder-[#555] focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* 2. OpenAI */}
+                  <div className="p-3.5 rounded-2xl bg-[#121212] border border-[#262626] space-y-1.5 hover:border-[#383838] transition">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-xs text-emerald-400">OpenAI</span>
+                        <span className="px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 text-[9px] font-bold">
+                          GPT-4o / o1
+                        </span>
+                      </div>
+                      <a
+                        href="https://platform.openai.com/api-keys"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[10px] text-indigo-400 hover:underline"
+                      >
+                        Get Key &rarr;
+                      </a>
+                    </div>
+                    <p className="text-[11px] text-[#737373]">
+                      Standard for high-accuracy reasoning, GPT-4o, and GPT-4o-mini.
+                    </p>
+                    <input
+                      type="password"
+                      placeholder="sk-..."
+                      value={openaiKey}
+                      onChange={(e) => setOpenaiKey(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-[#1e1e1e] border border-[#333333] text-xs text-white font-mono placeholder-[#555] focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* 3. Google Gemini */}
+                  <div className="p-3.5 rounded-2xl bg-[#121212] border border-[#262626] space-y-1.5 hover:border-[#383838] transition">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-xs text-blue-400">Google Gemini</span>
+                        <span className="px-1.5 py-0.2 rounded-full bg-blue-500/20 text-blue-300 text-[9px] font-bold">
+                          1M Context
+                        </span>
+                      </div>
+                      <a
+                        href="https://aistudio.google.com/app/apikey"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[10px] text-indigo-400 hover:underline"
+                      >
+                        Get Free Key &rarr;
+                      </a>
+                    </div>
+                    <p className="text-[11px] text-[#737373]">
+                      Gemini 1.5 Flash and Gemini 1.5 Pro with massive 1,000,000-token context support.
+                    </p>
+                    <input
+                      type="password"
+                      placeholder="AIzaSy..."
+                      value={geminiKey}
+                      onChange={(e) => setGeminiKey(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-[#1e1e1e] border border-[#333333] text-xs text-white font-mono placeholder-[#555] focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* 4. Anthropic */}
+                  <div className="p-3.5 rounded-2xl bg-[#121212] border border-[#262626] space-y-1.5 hover:border-[#383838] transition">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-xs text-orange-400">Anthropic Claude</span>
+                        <span className="px-1.5 py-0.2 rounded-full bg-orange-500/20 text-orange-300 text-[9px] font-bold">
+                          Claude 3.5
+                        </span>
+                      </div>
+                      <a
+                        href="https://console.anthropic.com/settings/keys"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[10px] text-indigo-400 hover:underline"
+                      >
+                        Get Key &rarr;
+                      </a>
+                    </div>
+                    <p className="text-[11px] text-[#737373]">
+                      Claude 3.5 Sonnet and Haiku for nuanced writing and code architecture.
+                    </p>
+                    <input
+                      type="password"
+                      placeholder="sk-ant-..."
+                      value={anthropicKey}
+                      onChange={(e) => setAnthropicKey(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-[#1e1e1e] border border-[#333333] text-xs text-white font-mono placeholder-[#555] focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* 5. OpenRouter */}
+                  <div className="p-3.5 rounded-2xl bg-[#121212] border border-[#262626] space-y-1.5 hover:border-[#383838] transition">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-xs text-purple-400">OpenRouter</span>
+                        <span className="px-1.5 py-0.2 rounded-full bg-purple-500/20 text-purple-300 text-[9px] font-bold">
+                          Multi-Model
+                        </span>
+                      </div>
+                      <a
+                        href="https://openrouter.ai/keys"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[10px] text-indigo-400 hover:underline"
+                      >
+                        Get Key &rarr;
+                      </a>
+                    </div>
+                    <p className="text-[11px] text-[#737373]">
+                      Unified gateway routing to 100+ AI models including DeepSeek R1 and Claude 3.5.
+                    </p>
+                    <input
+                      type="password"
+                      placeholder="sk-or-..."
+                      value={openrouterKey}
+                      onChange={(e) => setOpenrouterKey(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-[#1e1e1e] border border-[#333333] text-xs text-white font-mono placeholder-[#555] focus:border-indigo-500 focus:outline-none"
                     />
                   </div>
                 </div>

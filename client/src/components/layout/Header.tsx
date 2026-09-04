@@ -97,30 +97,17 @@ export const Header: React.FC = () => {
   return (
     <>
       <header className="h-14 bg-[var(--bg-main)] px-4 flex items-center justify-between shrink-0 select-none border-b border-transparent">
-        {/* Left: Guts AI Branding & Single Unified OX-Alpha Model */}
+        {/* Left: Sidebar toggle only when sidebar is collapsed */}
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 rounded-lg text-[var(--text-sub)] hover:text-[var(--text-main)] hover:bg-[var(--bg-sidebar-hover)] transition cursor-pointer"
-            title="Toggle Sidebar"
-          >
-            <PanelLeft className="w-5 h-5" />
-          </button>
-
-          {/* Single Unified OX-Alpha Super-Model Pill */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[var(--bg-sidebar-hover)] border border-[var(--border-subtle)] text-[var(--text-main)]">
-            <img 
-              src="/assets/guts-logo.png" 
-              alt="Guts AI" 
-              className="w-5 h-5 rounded-md object-cover shadow-sm ring-1 ring-red-500/20" 
-            />
-            <div className="flex items-center gap-1.5 font-semibold text-sm tracking-tight">
-              <span>OX-Alpha</span>
-              <span className="hidden sm:inline-block px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 text-[9px] font-bold border border-indigo-500/20">
-                Omni Intelligence
-              </span>
-            </div>
-          </div>
+          {!sidebarOpen && (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 rounded-lg text-[var(--text-sub)] hover:text-[var(--text-main)] hover:bg-[var(--bg-sidebar-hover)] transition cursor-pointer"
+              title="Open Sidebar"
+            >
+              <PanelLeft className="w-5 h-5" />
+            </button>
+          )}
         </div>
 
         {/* Center: Segmented Chat / Work Control */}
@@ -139,35 +126,8 @@ export const Header: React.FC = () => {
           </button>
         </div>
 
-        {/* Right: Temporary Chat, Share & 3-Dots Action Menu */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* 1. Temporary Chat Toggle Button */}
-          <button
-            onClick={() => toggleTemporaryChat()}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer border ${
-              isTemporaryChat
-                ? 'bg-amber-500/15 text-amber-400 border-amber-500/30 ring-1 ring-amber-500/20 shadow-sm'
-                : 'bg-[var(--bg-sidebar-hover)] hover:bg-[var(--border-subtle)] text-[var(--text-sub)] hover:text-[var(--text-main)] border-[var(--border-subtle)]'
-            }`}
-            title={isTemporaryChat ? "Temporary chat is ON (messages will not be saved)" : "Start a temporary chat (not saved in history)"}
-          >
-            <MessageSquareDashed className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">
-              {isTemporaryChat ? 'Temporary Chat' : 'Temporary'}
-            </span>
-          </button>
-
-          {/* 2. Share Button */}
-          <button
-            onClick={handleShareClick}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-sidebar-hover)] hover:bg-[var(--border-subtle)] text-[var(--text-main)] text-xs font-semibold transition cursor-pointer border border-[var(--border-subtle)]"
-            title="Share Chat & Create Link"
-          >
-            <Share2 className="w-3.5 h-3.5 text-[var(--text-sub)]" />
-            <span className="hidden sm:inline">Share</span>
-          </button>
-
-          {/* 3. 3-Dots Action Menu */}
+        {/* Right: Only the 3-Dots Action Menu (User Request) */}
+        <div className="flex items-center gap-2">
           <div className="relative" ref={dotsRef}>
             <button
               onClick={() => setDotsMenuOpen(!dotsMenuOpen)}
@@ -180,7 +140,7 @@ export const Header: React.FC = () => {
             {/* 3-Dots Dropdown Options */}
             {dotsMenuOpen && (
               <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-[var(--bg-main)] border border-[var(--border-input)] shadow-2xl p-1.5 z-50 text-xs animate-in fade-in space-y-0.5">
-                {/* Share Chat */}
+                {/* 1. Share Chat / Create Link */}
                 <button
                   onClick={handleShareClick}
                   className="w-full text-left px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] transition flex items-center justify-between cursor-pointer"
@@ -192,7 +152,7 @@ export const Header: React.FC = () => {
                   <ChevronRight className="w-3 h-3 text-[var(--text-muted)]" />
                 </button>
 
-                {/* Temporary Chat Toggle */}
+                {/* 2. Temporary Chat Toggle */}
                 <button
                   onClick={() => {
                     setDotsMenuOpen(false);
@@ -207,6 +167,18 @@ export const Header: React.FC = () => {
                   <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${isTemporaryChat ? 'bg-amber-500/20 text-amber-400' : 'text-[var(--text-muted)]'}`}>
                     {isTemporaryChat ? 'ON' : 'OFF'}
                   </span>
+                </button>
+
+                {/* 3. Create Project */}
+                <button
+                  onClick={() => {
+                    setDotsMenuOpen(false);
+                    setActiveModal('projects');
+                  }}
+                  className="w-full text-left px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] transition flex items-center gap-2.5 cursor-pointer"
+                >
+                  <FolderPlus className="w-4 h-4 text-emerald-400" />
+                  <span>Create / Manage Project</span>
                 </button>
 
                 {activeConversationId && (
@@ -244,18 +216,6 @@ export const Header: React.FC = () => {
                     >
                       <Archive className="w-4 h-4 text-slate-400" />
                       <span>Archive chat</span>
-                    </button>
-
-                    {/* Move to Project */}
-                    <button
-                      onClick={() => {
-                        setDotsMenuOpen(false);
-                        setMoveModalOpen(true);
-                      }}
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] transition flex items-center gap-2.5 cursor-pointer"
-                    >
-                      <FolderPlus className="w-4 h-4 text-emerald-400" />
-                      <span>Move to project</span>
                     </button>
 
                     {/* Delete Chat */}

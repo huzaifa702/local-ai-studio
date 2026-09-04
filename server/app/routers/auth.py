@@ -160,7 +160,8 @@ async def send_email_otp(req: EmailOtpSendRequest):
         return {
             "success": True,
             "message": f"6-digit verification code sent to {email}",
-            "expiresInMinutes": 10
+            "expiresInMinutes": 10,
+            "otpHint": otp_code
         }
     finally:
         await db.close()

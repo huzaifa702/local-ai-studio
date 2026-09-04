@@ -83,24 +83,16 @@ class OllamaService:
             if has_images:
                 return "moondream:latest"
 
-            # 2. Reasoning Model (<think>)
+            # 2. Explicit Reasoning Model (<think>)
             if think_enabled:
                 return "deepseek-r1:7b"
             
-            reasoning_keywords = ["reason", "prove", "step by step", "logic", "calculate", "derivative", "integral", "theorem", "why does", "deep analysis"]
-            if any(k in content.lower() for k in reasoning_keywords):
-                return "deepseek-r1:7b"
-
-            # 3. Coding Specialist Model
-            code_keywords = [
-                "def ", "class ", "function", "import ", "const ", "var ", "let ", 
-                "```", "python", "javascript", "typescript", "html", "css", "sql", 
-                "bug", "refactor", "api", "docker", "component", "interface", "react", "script"
-            ]
-            if any(k in content.lower() for k in code_keywords):
+            # 3. Explicit Code Block / Programming syntax
+            code_keywords = ["```", "def ", "class ", "import React", "from 'react'", "function(", "const [", "async def "]
+            if any(k in content for k in code_keywords):
                 return "qwen2.5-coder:7b"
 
-            # 4. Default Ultra-Fast Chat Model
+            # 4. Default Ultra-Fast Chat Model (llama3.2:3b is 5x faster than 7b)
             return "llama3.2:3b"
             
         # If user passed a model that doesn't exist, fallback safely to llama3.2:3b
@@ -149,7 +141,11 @@ class OllamaService:
                 "messages": formatted_messages,
                 "stream": True,
                 "options": {
-                    "temperature": temperature
+                    "temperature": temperature,
+                    "num_thread": 8,
+                    "num_ctx": 4096,
+                    "top_k": 40,
+                    "top_p": 0.9
                 }
             }
 
