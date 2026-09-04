@@ -1,52 +1,74 @@
 @import "tailwindcss";
 
 /* ==========================================================================
-   ChatGPT Official UI Design System
+   Guts AI Unified Design System (Flawless Light, Dark & High Contrast)
    ========================================================================== */
 
 :root {
-  /* Light Mode (Exact ChatGPT Light Theme) */
+  /* Light Mode (Clean, Modern, Slate/Zinc Tone) */
   --bg-main: #ffffff;
-  --bg-sidebar: #f9f9fb;
-  --bg-sidebar-hover: #ececf1;
-  --bg-sidebar-active: #ececf1;
+  --bg-sidebar: #f8f9fa;
+  --bg-sidebar-hover: #eceef1;
+  --bg-sidebar-active: #e3e6ea;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #ffffff;
+  --bg-card: #f8f9fb;
   --bg-input: #ffffff;
-  --border-input: #e5e5e5;
-  --border-sidebar: #f3f3f6;
-  --border-subtle: #f0f0f0;
-  
-  --text-main: #0d0d0d;
-  --text-sub: #5d5d6b;
-  --text-muted: #8e8ea0;
-  
-  --btn-primary: #0d0d0d;
+  --bg-popover: #ffffff;
+
+  --border-subtle: #e5e7eb;
+  --border-medium: #d1d5db;
+  --border-input: #d1d5db;
+  --border-sidebar: #e5e7eb;
+
+  --text-main: #0f172a;
+  --text-sub: #475569;
+  --text-muted: #64748b;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+
+  --btn-primary: #0f172a;
   --btn-primary-text: #ffffff;
-  --btn-voice-blue: #10a37f;
-  --btn-hover: #f4f4f6;
+  --btn-hover: #f1f5f9;
+
+  --accent-color: #8b5cf6;
+  --accent-bg: rgba(139, 92, 246, 0.12);
+  --accent-border: rgba(139, 92, 246, 0.35);
 
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
 }
 
 .dark {
-  /* Dark Mode (Exact ChatGPT Dark Theme) */
-  --bg-main: #212121;
-  --bg-sidebar: #171717;
-  --bg-sidebar-hover: #212121;
-  --bg-sidebar-active: #2f2f2f;
-  --bg-input: #2f2f2f;
-  --border-input: #424242;
-  --border-sidebar: #242424;
-  --border-subtle: #2f2f2f;
+  /* Dark Mode (Deep OLED & Charcoal Aesthetics) */
+  --bg-main: #18181b;
+  --bg-sidebar: #121215;
+  --bg-sidebar-hover: #222227;
+  --bg-sidebar-active: #27272e;
+  --bg-surface: #1e1e23;
+  --bg-surface-elevated: #24242a;
+  --bg-card: #1f1f24;
+  --bg-input: #232329;
+  --bg-popover: #1f1f24;
 
-  --text-main: #ececec;
-  --text-sub: #b4b4b4;
-  --text-muted: #878787;
+  --border-subtle: #27272a;
+  --border-medium: #3f3f46;
+  --border-input: #3f3f46;
+  --border-sidebar: #27272a;
+
+  --text-main: #f8fafc;
+  --text-sub: #cbd5e1;
+  --text-muted: #94a3b8;
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
 
   --btn-primary: #ffffff;
-  --btn-primary-text: #0d0d0d;
-  --btn-voice-blue: #10a37f;
-  --btn-hover: #2f2f2f;
+  --btn-primary-text: #09090b;
+  --btn-hover: #27272a;
+
+  --accent-color: #a855f7;
+  --accent-bg: rgba(168, 85, 247, 0.15);
+  --accent-border: rgba(168, 85, 247, 0.4);
 }
 
 *, *::before, *::after {
@@ -65,6 +87,7 @@ html, body, #root {
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* Chat input capsule styling */
@@ -77,27 +100,33 @@ html, body, #root {
 }
 
 .chatgpt-input-box:focus-within {
-  border-color: #676767;
+  border-color: var(--border-medium);
   box-shadow: 0 0 28px rgba(0, 0, 0, 0.12);
 }
 
 /* High Contrast Mode */
 .contrast-increased {
-  --border-input: #666666 !important;
-  --border-subtle: #4d4d4d !important;
-  --border-sidebar: #4d4d4d !important;
+  --border-subtle: #52525b !important;
+  --border-medium: #71717a !important;
+  --border-input: #71717a !important;
+  --border-sidebar: #52525b !important;
+  --text-sub: #e2e8f0 !important;
+  --text-muted: #cbd5e1 !important;
 }
 
 html:not(.dark).contrast-increased {
-  --border-input: #888888 !important;
-  --border-subtle: #bbbbbb !important;
-  --border-sidebar: #bbbbbb !important;
+  --border-subtle: #94a3b8 !important;
+  --border-medium: #64748b !important;
+  --border-input: #64748b !important;
+  --border-sidebar: #94a3b8 !important;
+  --text-sub: #1e293b !important;
+  --text-muted: #334155 !important;
 }
 
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -109,4 +138,3 @@ html:not(.dark).contrast-increased {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(150, 150, 150, 0.45);
 }
-

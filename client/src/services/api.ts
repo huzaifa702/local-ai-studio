@@ -334,6 +334,18 @@ export const api = {
     return res.json();
   },
 
+  async testProviderKey(provider: string, apiKey?: string): Promise<{ success: boolean; message: string; models: string[] }> {
+    const res = await fetch(`${API_BASE}/models/test-key`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ provider, apiKey })
+    });
+    if (!res.ok) {
+      return { success: false, message: 'Server communication error', models: [] };
+    }
+    return res.json();
+  },
+
   async pullModel(name: string, onProgress: (data: any) => void): Promise<void> {
     const res = await fetch(`${API_BASE}/models/pull`, {
       method: 'POST',

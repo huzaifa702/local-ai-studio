@@ -195,7 +195,7 @@ export const Sidebar: React.FC = () => {
       )}
 
       {/* Recents Section with Search */}
-      <div className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5 text-xs">
+      <div className="flex-1 min-h-0 overflow-y-auto px-2 py-2 space-y-0.5 text-xs pb-10">
         <div className="px-3 pt-1 pb-1 flex items-center justify-between">
           <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">
             Recents
@@ -228,10 +228,10 @@ export const Sidebar: React.FC = () => {
       {/* Bottom Footer Section */}
       {user ? (
         /* Logged-In User Profile Card (Screenshot 1) */
-        <div className="p-2 border-t border-[var(--border-sidebar)] relative" ref={profileRef}>
+        <div className="p-2 border-t border-[var(--border-sidebar)] relative shrink-0" ref={profileRef}>
           {/* Profile Menu Popup (Exact Match to User Screenshot) */}
           {profileMenuOpen && (
-            <div className="absolute bottom-16 left-2 right-2 p-1.5 bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl shadow-2xl z-40 text-xs animate-in fade-in slide-in-from-bottom-2">
+            <div className="absolute bottom-16 left-2 right-2 p-1.5 bg-[var(--bg-surface-elevated)] border border-[var(--border-medium)] rounded-2xl shadow-2xl z-50 text-xs animate-in fade-in slide-in-from-bottom-2">
               {/* Top User Account Header */}
               <div 
                 onClick={() => {

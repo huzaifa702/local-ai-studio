@@ -38,7 +38,8 @@ export const MessageInput: React.FC = () => {
     toggleSearch, 
     toggleThink, 
     setActiveModal,
-    settings
+    settings,
+    customModels
   } = useAppStore();
 
   const [input, setInput] = useState('');
@@ -254,7 +255,19 @@ export const MessageInput: React.FC = () => {
     }
   ];
 
-  const currentModelObj = modelsList.find(m => m.id.toLowerCase() === selectedModel.toLowerCase()) || modelsList[0];
+  const allModels = [
+    ...modelsList,
+    ...customModels.map(cm => ({
+      id: cm.id,
+      name: cm.name,
+      provider: cm.provider as any,
+      subtitle: cm.subtitle || `Custom (${cm.provider})`,
+      badge: cm.badge || 'Custom',
+      isDefault: false
+    }))
+  ];
+
+  const currentModelObj = allModels.find(m => m.id.toLowerCase() === selectedModel.toLowerCase()) || allModels[0];
 
   return (
     <div className="p-4 bg-gradient-to-t from-[var(--bg-main)] via-[var(--bg-main)] to-transparent shrink-0">
@@ -445,6 +458,22 @@ export const MessageInput: React.FC = () => {
                   Cowork
                 </button>
               </div>
+
+              {/* Dedicated Web Search Toggle Button (OFF by default) */}
+              <button
+                type="button"
+                onClick={() => toggleSearch()}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition cursor-pointer border ${
+                  searchEnabled
+                    ? 'bg-blue-500/15 border-blue-500/40 text-blue-400 shadow-sm'
+                    : 'border-transparent text-[var(--text-sub)] hover:text-[var(--text-main)] hover:bg-[var(--bg-sidebar-hover)]'
+                }`}
+                title={searchEnabled ? 'Web Search is ON (Click to turn off)' : 'Turn Web Search ON'}
+              >
+                <Globe className={`w-3.5 h-3.5 ${searchEnabled ? 'text-blue-400' : 'text-[var(--text-sub)]'}`} />
+                <span className="text-[11px]">Search</span>
+                {searchEnabled && <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />}
+              </button>
             </div>
 
             {/* Right Buttons: Model & Effort Popover, Mic, Voice Pill, and Send */}
@@ -466,12 +495,12 @@ export const MessageInput: React.FC = () => {
                   <ChevronDown className="w-3 h-3 text-[var(--text-muted)]" />
                 </button>
 
-                {/* Model & Thinking Effort Dropdown Menu (Exact Screenshot 2 Layout) */}
+                {/* Model & Thinking Effort Dropdown Menu (Floats above input, never cut off) */}
                 {modelMenuOpen && (
-                  <div className="absolute right-0 bottom-9 w-72 rounded-2xl bg-[var(--bg-main)] border border-[var(--border-input)] shadow-2xl p-2 z-50 text-xs animate-in fade-in slide-in-from-bottom-2 space-y-1">
+                  <div className="absolute right-0 bottom-full mb-2 w-80 max-h-[380px] overflow-y-auto rounded-2xl bg-[var(--bg-surface-elevated)] border border-[var(--border-medium)] shadow-2xl p-2 z-50 text-xs animate-in fade-in slide-in-from-bottom-2 space-y-1">
                     {/* Models List */}
                     <div className="space-y-0.5">
-                      {modelsList.map((m) => {
+                      {allModels.map((m) => {
                         const isSelected = selectedModel.toLowerCase().includes(m.id.toLowerCase());
                         return (
                           <button
@@ -553,10 +582,25 @@ export const MessageInput: React.FC = () => {
                         setModelMenuOpen(false);
                         setActiveModal('models');
                       }}
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition flex items-center justify-between cursor-pointer pt-1"
+                      className="w-full text-left px-3 py-1.5 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition flex items-center justify-between cursor-pointer pt-1"
                     >
                       <span>More models (Models Hub)</span>
                       <ChevronRight className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                    </button>
+
+                    {/* Add Custom / Cloud API Model */}
+                    <button
+                      onClick={() => {
+                        setModelMenuOpen(false);
+                        setActiveModal('settings');
+                      }}
+                      className="w-full text-left px-3 py-1.5 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-indigo-400 hover:text-indigo-300 transition flex items-center justify-between cursor-pointer text-[11px]"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>API Keys & Custom Models</span>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 )}

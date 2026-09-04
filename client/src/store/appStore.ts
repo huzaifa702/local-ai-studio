@@ -35,6 +35,9 @@ interface AppState {
   modelsData: ModelsResponse | null;
   selectedModel: string;
   selectedProvider: 'ollama' | 'openai' | 'groq' | 'anthropic' | 'gemini' | 'openrouter';
+  customModels: Array<{ id: string; name: string; provider: string; subtitle?: string; badge?: string; thinkingEffort?: string }>;
+  addCustomModel: (model: { id: string; name: string; provider: string; subtitle?: string; badge?: string; thinkingEffort?: string }) => void;
+  deleteCustomModel: (modelId: string) => void;
 
   // Conversations
   conversations: Conversation[];
@@ -99,8 +102,10 @@ const defaultUserProfile: UserProfile = {
   picture: ''
 };
 
+const isInitialLoggedOut = typeof window !== 'undefined' && localStorage.getItem('local_ai_logged_out') === 'true';
+
 export const useAppStore = create<AppState>((set, get) => ({
-  user: defaultUserProfile,
+  user: isInitialLoggedOut ? null : defaultUserProfile,
   settings: {
     theme: 'dark',
     defaultModel: 'llama3.2:3b',
@@ -178,6 +183,25 @@ export const useAppStore = create<AppState>((set, get) => ({
   modelsData: null,
   selectedModel: 'llama3.2:3b',
   selectedProvider: 'ollama',
+  customModels: (() => {
+    try {
+      const saved = localStorage.getItem('local_custom_models');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  })(),
+  addCustomModel: (model) => set((state) => {
+    const updated = [model, ...state.customModels.filter(m => m.id !== model.id)];
+    try { localStorage.setItem('local_custom_models', JSON.stringify(updated)); } catch {}
+    return { customModels: updated, selectedModel: model.id, selectedProvider: model.provider as any };
+  }),
+  deleteCustomModel: (modelId) => set((state) => {
+    const updated = state.customModels.filter(m => m.id !== modelId);
+    try { localStorage.setItem('local_custom_models', JSON.stringify(updated)); } catch {}
+    const newSelected = state.selectedModel === modelId ? 'llama3.2:3b' : state.selectedModel;
+    return { customModels: updated, selectedModel: newSelected };
+  }),
   conversations: [],
   activeConversationId: null,
   activeConversation: null,
@@ -202,8 +226,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (user?.token) localStorage.setItem('localai_token', user.token);
     if (user) {
       localStorage.setItem('local_ai_user', JSON.stringify(user));
+      localStorage.removeItem('local_ai_logged_out');
     } else {
       localStorage.removeItem('local_ai_user');
+      localStorage.setItem('local_ai_logged_out', 'true');
     }
     // Reload user-scoped data
     get().fetchConversations();
@@ -214,6 +240,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   logout: () => {
     api.logout();
     localStorage.removeItem('local_ai_user');
+    localStorage.removeItem('localai_token');
+    localStorage.setItem('local_ai_logged_out', 'true');
     set({ 
       user: null, 
       conversations: [], 
@@ -222,7 +250,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       projects: [],
       memories: []
     });
-    get().initApp();
+    get().fetchModels();
+    get().fetchSettings();
   },
 
   initApp: async () => {
@@ -235,16 +264,22 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (remoteUser) {
         set({ user: remoteUser });
         localStorage.setItem('local_ai_user', JSON.stringify(remoteUser));
+        localStorage.removeItem('local_ai_logged_out');
       } else {
-        const saved = localStorage.getItem('local_ai_user');
-        if (saved) {
-          try {
-            set({ user: JSON.parse(saved) });
-          } catch {
+        const isLoggedOut = localStorage.getItem('local_ai_logged_out') === 'true';
+        if (isLoggedOut) {
+          set({ user: null });
+        } else {
+          const saved = localStorage.getItem('local_ai_user');
+          if (saved) {
+            try {
+              set({ user: JSON.parse(saved) });
+            } catch {
+              set({ user: defaultUserProfile });
+            }
+          } else {
             set({ user: defaultUserProfile });
           }
-        } else {
-          set({ user: defaultUserProfile });
         }
       }
 

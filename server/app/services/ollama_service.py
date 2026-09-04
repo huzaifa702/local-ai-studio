@@ -88,18 +88,14 @@ class OllamaService:
                 return "deepseek-r1:7b"
             
             # 3. Explicit Code Block / Programming syntax
-            code_keywords = ["```", "def ", "class ", "import React", "from 'react'", "function(", "const [", "async def "]
-            if any(k in content for k in code_keywords):
+            code_keywords = ["```", "write code", "write a script", "write a python", "write a function", "fix this error", "refactor this code"]
+            if any(k in content.lower() for k in code_keywords):
                 return "qwen2.5-coder:7b"
 
             # 4. Default Ultra-Fast Chat Model (llama3.2:3b is 5x faster than 7b)
             return "llama3.2:3b"
             
-        # If user passed a model that doesn't exist, fallback safely to llama3.2:3b
-        known_models = ["llama3.2:3b", "qwen2.5-coder:7b", "deepseek-r1:7b", "moondream:latest"]
-        if model not in known_models and not any(k in model for k in ["llama", "qwen", "deepseek", "moondream"]):
-            return "llama3.2:3b"
-            
+        # Respect the user's explicit model choice
         return model
 
     async def stream_chat(
@@ -119,7 +115,7 @@ class OllamaService:
         
         # 1. Cloud Provider Fallback if API key provided
         if cloud_api_key and provider and provider != "ollama":
-            async for token in self._stream_cloud_chat(provider, cloud_api_key, model, messages, system_prompt, temperature):
+            async for token in self._stream_cloud_chat(provider, cloud_api_key, resolved_model, messages, system_prompt, temperature):
                 yield token
             return
 
@@ -143,7 +139,7 @@ class OllamaService:
                 "options": {
                     "temperature": temperature,
                     "num_thread": 8,
-                    "num_ctx": 4096,
+                    "num_ctx": 2048,
                     "top_k": 40,
                     "top_p": 0.9
                 }
@@ -185,7 +181,60 @@ class OllamaService:
         system_prompt: Optional[str],
         temperature: float
     ) -> AsyncGenerator[Dict[str, Any], None]:
-        # Support OpenAI / Groq / OpenRouter API compatible endpoints
+        # Handle Anthropic Claude specifically
+        if provider == "anthropic":
+            headers = {
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+                "Content-Type": "application/json"
+            }
+            anthropic_msgs = []
+            for m in messages:
+                role = "assistant" if m["role"] == "assistant" else "user"
+                anthropic_msgs.append({"role": role, "content": m["content"]})
+
+            payload = {
+                "model": model if "claude" in model else "claude-3-5-sonnet-20241022",
+                "messages": anthropic_msgs,
+                "max_tokens": 4096,
+                "temperature": temperature,
+                "stream": True
+            }
+            if system_prompt:
+                payload["system"] = system_prompt
+
+            try:
+                async with httpx.AsyncClient(timeout=60.0) as client:
+                    async with client.stream(
+                        "POST",
+                        "https://api.anthropic.com/v1/messages",
+                        headers=headers,
+                        json=payload
+                    ) as response:
+                        if response.status_code != 200:
+                            err_body = await response.aread()
+                            yield {"error": f"Anthropic error ({response.status_code}): {err_body.decode('utf-8')}"}
+                            return
+                        async for line in response.aiter_lines():
+                            if line.startswith("data: "):
+                                raw = line[6:].strip()
+                                try:
+                                    parsed = json.loads(raw)
+                                    if parsed.get("type") == "content_block_delta":
+                                        delta_text = parsed.get("delta", {}).get("text", "")
+                                        if delta_text:
+                                            yield {"content": delta_text, "done": False}
+                                    elif parsed.get("type") == "message_stop":
+                                        yield {"content": "", "done": True}
+                                        break
+                                except Exception:
+                                    continue
+                return
+            except Exception as e:
+                yield {"error": f"Anthropic API error: {str(e)}"}
+                return
+
+        # Support OpenAI / Groq / OpenRouter / Gemini API compatible endpoints
         base_urls = {
             "openai": "https://api.openai.com/v1",
             "groq": "https://api.groq.com/openai/v1",
@@ -213,6 +262,10 @@ class OllamaService:
                     headers=headers,
                     json={"model": model, "messages": chat_msgs, "temperature": temperature, "stream": True}
                 ) as response:
+                    if response.status_code != 200:
+                        err_body = await response.aread()
+                        yield {"error": f"{provider.capitalize()} error ({response.status_code}): {err_body.decode('utf-8')}"}
+                        return
                     async for line in response.aiter_lines():
                         if line.startswith("data: "):
                             raw = line[6:].strip()

@@ -289,9 +289,16 @@ async def clear_all_conversations(user_id: str = Depends(get_current_user_id)):
         await db.close()
 
 def should_auto_search(text: str) -> bool:
-    keywords = ["latest", "news", "today", "price of", "weather", "who won", "current", "release date", "stock", "update on"]
-    t = text.lower()
-    return any(k in t for k in keywords)
+    cleaned = text.strip().lower()
+    words = cleaned.split()
+    # Never auto-search short conversational messages or greetings
+    if len(words) < 4:
+        return False
+    greetings = ["hi", "hello", "hey", "good morning", "good afternoon", "good evening", "how are you", "who are you", "what can you do"]
+    if any(cleaned == g or cleaned.startswith(g + " ") for g in greetings):
+        return False
+    explicit_search_prefixes = ["search web for", "search the web for", "search for", "lookup", "current news on", "latest stock price of"]
+    return any(k in cleaned for k in explicit_search_prefixes)
 
 @router.post("/send")
 async def send_message(req: SendMessageRequest, user_id: str = Depends(get_current_user_id)):
