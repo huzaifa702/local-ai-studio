@@ -39,7 +39,8 @@ export const MessageInput: React.FC = () => {
     toggleThink, 
     setActiveModal,
     settings,
-    customModels
+    customModels,
+    detectedModels
   } = useAppStore();
 
   const [input, setInput] = useState('');
@@ -52,6 +53,7 @@ export const MessageInput: React.FC = () => {
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
   // Claude model & effort thinking popover
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
+  const [openDirection, setOpenDirection] = useState<'down' | 'up'>('down');
 
   // Thinking effort: 'low' | 'medium' | 'high' | 'max'
   const [thinkingEffort, setThinkingEffort] = useState<'low' | 'medium' | 'high' | 'max'>('max');
@@ -84,6 +86,20 @@ export const MessageInput: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Calculate whether dropdown should open upwards or downwards to prevent viewport clipping
+  useEffect(() => {
+    if (modelMenuOpen && modelMenuRef.current) {
+      const rect = modelMenuRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      if (spaceBelow < 380 && spaceAbove > spaceBelow) {
+        setOpenDirection('up');
+      } else {
+        setOpenDirection('down');
+      }
+    }
+  }, [modelMenuOpen]);
 
   const toggleVoiceInput = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -255,8 +271,26 @@ export const MessageInput: React.FC = () => {
     }
   ];
 
+  const detectedModelsList = (detectedModels || [])
+    .filter(dm => !modelsList.some(m => m.id.toLowerCase() === dm.id.toLowerCase()) && !customModels.some(cm => cm.id.toLowerCase() === dm.id.toLowerCase()))
+    .map(dm => {
+      const caps = [];
+      if (dm.capabilities.text) caps.push('Text');
+      if (dm.capabilities.audio) caps.push('Voice');
+      if (dm.capabilities.image) caps.push('Vision');
+      return {
+        id: dm.id,
+        name: dm.name,
+        provider: dm.provider as any,
+        subtitle: `${dm.provider.toUpperCase()} • ${caps.join(' + ') || 'Detected'}`,
+        badge: dm.capabilities.audio ? '🎙️ Audio' : (dm.capabilities.image ? '🖼️ Vision' : '☁️ Cloud'),
+        isDefault: false
+      };
+    });
+
   const allModels = [
     ...modelsList,
+    ...detectedModelsList,
     ...customModels.map(cm => ({
       id: cm.id,
       name: cm.name,
@@ -495,11 +529,13 @@ export const MessageInput: React.FC = () => {
                   <ChevronDown className="w-3 h-3 text-[var(--text-muted)]" />
                 </button>
 
-                {/* Model & Thinking Effort Dropdown Menu (Opens downwards as requested) */}
+                {/* Model & Thinking Effort Dropdown Menu (Auto-flips upwards or downwards to never clip) */}
                 {modelMenuOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-80 max-h-[380px] overflow-y-auto rounded-2xl bg-[var(--bg-surface-elevated)] border border-[var(--border-medium)] shadow-2xl p-2 z-50 text-xs animate-in fade-in slide-in-from-top-2 space-y-1">
-                    {/* Models List */}
-                    <div className="space-y-0.5">
+                  <div className={`absolute right-0 ${
+                    openDirection === 'up' ? 'bottom-full mb-2 slide-in-from-bottom-2' : 'top-full mt-2 slide-in-from-top-2'
+                  } w-80 max-h-[min(440px,calc(100vh-120px))] flex flex-col rounded-2xl bg-[var(--bg-surface-elevated)] border border-[var(--border-medium)] shadow-2xl p-2 z-50 text-xs animate-in fade-in space-y-1`}>
+                    {/* Models List - Scrollable */}
+                    <div className="max-h-44 overflow-y-auto pr-1 space-y-0.5 scrollbar-thin">
                       {allModels.map((m) => {
                         const isSelected = selectedModel.toLowerCase().includes(m.id.toLowerCase());
                         return (

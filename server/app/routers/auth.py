@@ -12,6 +12,7 @@ import urllib.request
 import urllib.parse
 from ..db.database import get_db
 from ..config import JWT_SECRET, GOOGLE_CLIENT_ID
+from ..services.email_service import email_service
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -51,13 +52,13 @@ def decode_jwt_token(token: str) -> Optional[Dict[str, Any]]:
 
 async def get_current_user_id(authorization: Optional[str] = Header(None)) -> str:
     if not authorization:
-        return "local_user"
+        return "guest"
     
     token = authorization.replace("Bearer ", "").strip()
     payload = decode_jwt_token(token)
     if payload and "sub" in payload:
         return payload["sub"]
-    return "local_user"
+    return "guest"
 
 def format_user_response(user_row: Dict[str, Any]) -> Dict[str, Any]:
     uid = user_row.get("id", "local_user")
@@ -91,7 +92,16 @@ class EmailOtpSendRequest(BaseModel):
 class EmailOtpVerifyRequest(BaseModel):
     email: str
     otpCode: str
+    password: Optional[str] = None
     displayName: Optional[str] = None
+
+class ForgotPasswordSendRequest(BaseModel):
+    email: str
+
+class ForgotPasswordVerifyRequest(BaseModel):
+    email: str
+    otpCode: str
+    newPassword: str
 
 class GoogleAuthRequest(BaseModel):
     credential: Optional[str] = None # Real Google ID token from Google Identity Services
@@ -126,19 +136,24 @@ async def get_current_user_profile(authorization: Optional[str] = Header(None)):
         await db.close()
 
 # -------------------------------------------------------------
-# 1. Real 6-Digit Email OTP System
+# 1. Real 6-Digit Email OTP System & Forgot Password
 # -------------------------------------------------------------
 @router.post("/email/send-otp")
 async def send_email_otp(req: EmailOtpSendRequest):
     """
     Generates a cryptographically random 6-digit OTP code,
-    stores it in SQLite with 10-minute expiry, and logs/dispatches the code.
+    stores it in SQLite with 10-minute expiry, and dispatches via EmailService.
     """
     db = await get_db()
     try:
         email = req.email.strip().lower()
         if not email or "@" not in email or "." not in email:
             raise HTTPException(status_code=400, detail="Please enter a valid email address.")
+
+        # Check if email is already registered
+        cursor = await db.execute("SELECT id FROM users WHERE email = ?", (email,))
+        if await cursor.fetchone():
+            raise HTTPException(status_code=400, detail="An account with this email already exists. Please sign in or use Forgot Password.")
 
         # Generate a secure 6-digit OTP code
         otp_code = f"{secrets.randbelow(900000) + 100000}"
@@ -151,17 +166,12 @@ async def send_email_otp(req: EmailOtpSendRequest):
         )
         await db.commit()
 
-        # Display OTP in terminal banner for verified local execution
-        print("\n=======================================================")
-        print(f" [EMAIL OTP GENERATOR] Code for: {email}")
-        print(f" OTP Code: {otp_code} (Valid for 10 minutes)")
-        print("=======================================================\n")
+        # Dispatch via EmailService (SMTP or secure server log)
+        email_service.send_otp_email(email, otp_code, "Sign Up Verification")
 
         return {
             "success": True,
-            "message": f"6-digit verification code sent to {email}",
-            "expiresInMinutes": 10,
-            "otpHint": otp_code
+            "message": f"6-digit verification code sent to {email}. Valid for 10 minutes."
         }
     finally:
         await db.close()
@@ -171,7 +181,7 @@ async def verify_email_otp(req: EmailOtpVerifyRequest):
     """
     Verifies the 6-digit OTP code against SQLite.
     Strict check: Random or mismatched numbers will FAIL 100%.
-    On success: logs in or registers user with 30-day JWT.
+    On success: registers and verifies user with 30-day JWT.
     """
     db = await get_db()
     try:
@@ -202,14 +212,15 @@ async def verify_email_otp(req: EmailOtpVerifyRequest):
             await db.commit()
             return format_user_response(dict(user))
 
-        # Register new user
+        # Register new user with hashed password
         user_id = str(uuid.uuid4())
         display_name = req.displayName.strip() if req.displayName and req.displayName.strip() else email.split("@")[0]
         avatar_initials = (display_name[:2]).upper()
+        pw_hash = hash_pw(req.password.strip()) if req.password and req.password.strip() else hash_pw("UserPass2026")
 
         await db.execute(
-            "INSERT INTO users (id, username, email, display_name, avatar) VALUES (?, ?, ?, ?, ?)",
-            (user_id, email, email, display_name, avatar_initials)
+            "INSERT INTO users (id, username, email, password_hash, display_name, avatar) VALUES (?, ?, ?, ?, ?, ?)",
+            (user_id, email, email, pw_hash, display_name, avatar_initials)
         )
         await db.commit()
 
@@ -220,6 +231,73 @@ async def verify_email_otp(req: EmailOtpVerifyRequest):
             "display_name": display_name,
             "avatar": avatar_initials
         })
+    finally:
+        await db.close()
+
+@router.post("/forgot-password/send-otp")
+async def forgot_password_send_otp(req: ForgotPasswordSendRequest):
+    email = req.email.strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Please enter a valid email address.")
+    
+    db = await get_db()
+    try:
+        cursor = await db.execute("SELECT id FROM users WHERE email = ?", (email,))
+        user = await cursor.fetchone()
+        if not user:
+            raise HTTPException(status_code=404, detail="No registered account found with this email.")
+        
+        otp_code = f"{secrets.randbelow(900000) + 100000}"
+        expiry = (datetime.utcnow() + timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
+        await db.execute(
+            "INSERT INTO email_verifications (id, email, otp_code, expires_at, verified) VALUES (?, ?, ?, ?, 0)",
+            (str(uuid.uuid4()), email, otp_code, expiry)
+        )
+        await db.commit()
+
+        email_service.send_otp_email(email, otp_code, "Password Reset")
+
+        return {
+            "success": True,
+            "message": f"Password reset code sent to {email}. Valid for 10 minutes."
+        }
+    finally:
+        await db.close()
+
+@router.post("/forgot-password/verify-reset")
+async def forgot_password_verify_reset(req: ForgotPasswordVerifyRequest):
+    email = req.email.strip().lower()
+    otp_code = req.otpCode.strip()
+    new_pw = req.newPassword.strip()
+
+    if not email or not otp_code or not new_pw:
+        raise HTTPException(status_code=400, detail="Email, reset code, and new password are required.")
+    if len(new_pw) < 6:
+        raise HTTPException(status_code=400, detail="New password must be at least 6 characters.")
+
+    db = await get_db()
+    try:
+        now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        cursor = await db.execute(
+            "SELECT id FROM email_verifications WHERE email = ? AND otp_code = ? AND verified = 0 AND expires_at > ? ORDER BY created_at DESC LIMIT 1",
+            (email, otp_code, now_str)
+        )
+        record = await cursor.fetchone()
+        if not record:
+            raise HTTPException(status_code=400, detail="Invalid or expired reset code. Please request a new code.")
+
+        await db.execute("UPDATE email_verifications SET verified = 1 WHERE id = ?", (record["id"],))
+
+        new_hash = hash_pw(new_pw)
+        await db.execute("UPDATE users SET password_hash = ? WHERE email = ?", (new_hash, email))
+        await db.commit()
+
+        cursor = await db.execute("SELECT id, username, email, display_name, avatar FROM users WHERE email = ?", (email,))
+        user = await cursor.fetchone()
+        if not user:
+            raise HTTPException(status_code=404, detail="User account not found.")
+
+        return format_user_response(dict(user))
     finally:
         await db.close()
 

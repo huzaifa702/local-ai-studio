@@ -79,7 +79,12 @@ export const ChatContainer: React.FC = () => {
               />
               <h1 className="text-3xl sm:text-4xl font-serif font-medium text-[var(--text-main)] tracking-tight">
                 {user 
-                  ? `Good ${new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, ${user.displayName || user.username?.split('@')[0] || 'there'}`
+                  ? `Good ${new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, ${
+                      (user.displayName || user.username || 'there')
+                        .trim()
+                        .split(/\s+/)[0]
+                        .replace(/^./, (c) => c.toUpperCase())
+                    }`
                   : 'What can I help with today?'
                 }
               </h1>

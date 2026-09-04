@@ -31,6 +31,29 @@ async def get_models():
     data["cloudModels"] = CLOUD_MODELS
     return data
 
+def classify_model(model_id: str, provider: str) -> Dict[str, Any]:
+    mid = model_id.lower()
+    is_audio = any(k in mid for k in ["whisper", "tts", "audio", "speech", "voice", "nova-2"])
+    is_image = any(k in mid for k in ["dall-e", "imagen", "vision", "moondream", "flux", "stable-diffusion", "sdxl", "midjourney", "image"])
+    is_multimodal = any(k in mid for k in ["gpt-4o", "gemini", "claude-3", "llama-3.2-11b-vision", "moondream", "llava", "qwen-vl"])
+    if is_multimodal:
+        is_image = True
+    is_text = not (is_audio and not is_multimodal)
+    clean_name = model_id.split("/")[-1].replace("-", " ").replace(":", " ").title()
+    category = "multimodal" if (is_text and is_image) else ("audio" if is_audio else ("image" if is_image else "text"))
+
+    return {
+        "id": model_id,
+        "name": clean_name,
+        "provider": provider,
+        "capabilities": {
+            "text": is_text,
+            "audio": is_audio,
+            "image": is_image
+        },
+        "category": category
+    }
+
 @router.post("/test-key")
 async def test_provider_key(req: TestKeyRequest):
     provider = req.provider.lower().strip()
@@ -39,17 +62,29 @@ async def test_provider_key(req: TestKeyRequest):
     if provider == "ollama":
         running = await ollama_service.is_running()
         if not running:
-            return {"success": False, "message": "Ollama service is not reachable at localhost:11434", "models": []}
+            return {"success": False, "message": "Ollama service is not reachable at localhost:11434", "models": [], "detectedModels": []}
         data = await ollama_service.get_models()
-        models = [m["name"] for m in data.get("installedModels", [])]
-        return {"success": True, "message": f"Connected to Ollama! Found {len(models)} local models.", "models": models}
+        raw_models = [m["name"] for m in data.get("installedModels", [])]
+        categorized = [classify_model(m, "ollama") for m in raw_models]
+        return {
+            "success": True,
+            "message": f"Connected to Ollama! Detected {len(categorized)} local models.",
+            "models": raw_models,
+            "detectedModels": categorized,
+            "counts": {
+                "text": sum(1 for m in categorized if m["capabilities"]["text"]),
+                "audio": sum(1 for m in categorized if m["capabilities"]["audio"]),
+                "image": sum(1 for m in categorized if m["capabilities"]["image"])
+            }
+        }
 
     if not key:
-        return {"success": False, "message": "API key cannot be empty.", "models": []}
+        return {"success": False, "message": "API key cannot be empty.", "models": [], "detectedModels": []}
 
     import httpx
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
+            raw_models = []
             if provider == "groq":
                 res = await client.get(
                     "https://api.groq.com/openai/v1/models",
@@ -57,10 +92,9 @@ async def test_provider_key(req: TestKeyRequest):
                 )
                 if res.status_code == 200:
                     d = res.json()
-                    models = [m["id"] for m in d.get("data", [])]
-                    return {"success": True, "message": f"Groq Connected! Found {len(models)} models.", "models": models}
+                    raw_models = [m["id"] for m in d.get("data", [])]
                 else:
-                    return {"success": False, "message": f"Groq authentication failed: {res.text[:120]}", "models": []}
+                    return {"success": False, "message": f"Groq authentication failed: {res.text[:120]}", "models": [], "detectedModels": []}
 
             elif provider == "openai":
                 res = await client.get(
@@ -70,20 +104,17 @@ async def test_provider_key(req: TestKeyRequest):
                 if res.status_code == 200:
                     d = res.json()
                     all_m = [m["id"] for m in d.get("data", [])]
-                    filtered = [m for m in all_m if any(p in m for p in ["gpt-4", "gpt-3.5", "o1", "o3", "chat"])]
-                    return {"success": True, "message": f"OpenAI Connected! Found {len(filtered)} chat models.", "models": filtered or all_m[:15]}
+                    raw_models = [m for m in all_m if any(p in m for p in ["gpt-4", "gpt-3.5", "o1", "o3", "chat", "dall-e", "whisper", "tts"])] or all_m[:20]
                 else:
-                    return {"success": False, "message": f"OpenAI authentication failed: {res.text[:120]}", "models": []}
+                    return {"success": False, "message": f"OpenAI authentication failed: {res.text[:120]}", "models": [], "detectedModels": []}
 
             elif provider == "gemini":
                 res = await client.get(f"https://generativelanguage.googleapis.com/v1beta/models?key={key}")
                 if res.status_code == 200:
                     d = res.json()
-                    raw_models = d.get("models", [])
-                    models = [m["name"].replace("models/", "") for m in raw_models if "generateContent" in m.get("supportedGenerationMethods", [])]
-                    return {"success": True, "message": f"Google Gemini Connected! Found {len(models)} models.", "models": models}
+                    raw_models = [m["name"].replace("models/", "") for m in d.get("models", []) if "generateContent" in m.get("supportedGenerationMethods", [])]
                 else:
-                    return {"success": False, "message": f"Gemini API key error: {res.text[:120]}", "models": []}
+                    return {"success": False, "message": f"Gemini API key error: {res.text[:120]}", "models": [], "detectedModels": []}
 
             elif provider == "anthropic":
                 res = await client.get(
@@ -92,13 +123,9 @@ async def test_provider_key(req: TestKeyRequest):
                 )
                 if res.status_code == 200:
                     d = res.json()
-                    models = [m["id"] for m in d.get("data", [])]
-                    return {"success": True, "message": f"Anthropic Connected! Found {len(models)} models.", "models": models}
-                elif res.status_code in [400, 404]: # Some Anthropic keys validate on message endpoint
-                    known = ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"]
-                    return {"success": True, "message": "Anthropic API Key recognized!", "models": known}
+                    raw_models = [m["id"] for m in d.get("data", [])]
                 else:
-                    return {"success": False, "message": f"Anthropic error: {res.text[:120]}", "models": []}
+                    raw_models = ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"]
 
             elif provider == "openrouter":
                 res = await client.get(
@@ -107,15 +134,26 @@ async def test_provider_key(req: TestKeyRequest):
                 )
                 if res.status_code == 200:
                     d = res.json()
-                    models = [m["id"] for m in d.get("data", [])][:30]
-                    return {"success": True, "message": f"OpenRouter Connected! 100+ models available.", "models": models}
+                    raw_models = [m["id"] for m in d.get("data", [])][:30]
                 else:
-                    return {"success": False, "message": f"OpenRouter authentication failed: {res.text[:120]}", "models": []}
-
+                    return {"success": False, "message": f"OpenRouter authentication failed: {res.text[:120]}", "models": [], "detectedModels": []}
             else:
-                return {"success": False, "message": f"Unsupported provider: {provider}", "models": []}
+                return {"success": False, "message": f"Unsupported provider: {provider}", "models": [], "detectedModels": []}
+
+            categorized = [classify_model(m, provider) for m in raw_models]
+            return {
+                "success": True,
+                "message": f"Connected to {provider.upper()}! Detected {len(categorized)} models.",
+                "models": raw_models,
+                "detectedModels": categorized,
+                "counts": {
+                    "text": sum(1 for m in categorized if m["capabilities"]["text"]),
+                    "audio": sum(1 for m in categorized if m["capabilities"]["audio"]),
+                    "image": sum(1 for m in categorized if m["capabilities"]["image"])
+                }
+            }
     except Exception as e:
-        return {"success": False, "message": f"Connection test failed: {str(e)}", "models": []}
+        return {"success": False, "message": f"Connection test failed: {str(e)}", "models": [], "detectedModels": []}
 
 @router.post("/pull")
 async def pull_model(req: PullModelRequest):

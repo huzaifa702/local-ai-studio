@@ -8,7 +8,8 @@ import type {
   UserSettings, 
   UserProfile, 
   AttachedFile,
-  CitationItem 
+  CitationItem,
+  DetectedModelItem 
 } from '../types';
 import { api } from '../services/api';
 
@@ -38,6 +39,8 @@ interface AppState {
   customModels: Array<{ id: string; name: string; provider: string; subtitle?: string; badge?: string; thinkingEffort?: string }>;
   addCustomModel: (model: { id: string; name: string; provider: string; subtitle?: string; badge?: string; thinkingEffort?: string }) => void;
   deleteCustomModel: (modelId: string) => void;
+  detectedModels: DetectedModelItem[];
+  saveDetectedModels: (models: DetectedModelItem[]) => void;
 
   // Conversations
   conversations: Conversation[];
@@ -102,10 +105,22 @@ const defaultUserProfile: UserProfile = {
   picture: ''
 };
 
-const isInitialLoggedOut = typeof window !== 'undefined' && localStorage.getItem('local_ai_logged_out') === 'true';
+const getInitialUser = (): UserProfile | null => {
+  if (typeof window === 'undefined') return null;
+  if (localStorage.getItem('local_ai_logged_out') === 'true') return null;
+  const saved = localStorage.getItem('local_ai_user');
+  if (saved) {
+    try {
+      return JSON.parse(saved);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+};
 
 export const useAppStore = create<AppState>((set, get) => ({
-  user: isInitialLoggedOut ? null : defaultUserProfile,
+  user: getInitialUser(),
   settings: {
     theme: 'dark',
     defaultModel: 'llama3.2:3b',
@@ -202,6 +217,21 @@ export const useAppStore = create<AppState>((set, get) => ({
     const newSelected = state.selectedModel === modelId ? 'llama3.2:3b' : state.selectedModel;
     return { customModels: updated, selectedModel: newSelected };
   }),
+  detectedModels: (() => {
+    try {
+      const saved = localStorage.getItem('local_detected_models');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  })(),
+  saveDetectedModels: (models) => set((state) => {
+    const existingMap = new Map(state.detectedModels.map(m => [m.id, m]));
+    models.forEach(m => existingMap.set(m.id, m));
+    const merged = Array.from(existingMap.values());
+    try { localStorage.setItem('local_detected_models', JSON.stringify(merged)); } catch {}
+    return { detectedModels: merged };
+  }),
   conversations: [],
   activeConversationId: null,
   activeConversation: null,
@@ -266,33 +296,25 @@ export const useAppStore = create<AppState>((set, get) => ({
         localStorage.setItem('local_ai_user', JSON.stringify(remoteUser));
         localStorage.removeItem('local_ai_logged_out');
       } else {
-        const isLoggedOut = localStorage.getItem('local_ai_logged_out') === 'true';
-        if (isLoggedOut) {
-          set({ user: null });
-        } else {
-          const saved = localStorage.getItem('local_ai_user');
-          if (saved) {
-            try {
-              set({ user: JSON.parse(saved) });
-            } catch {
-              set({ user: defaultUserProfile });
-            }
-          } else {
-            set({ user: defaultUserProfile });
-          }
-        }
+        const savedUser = getInitialUser();
+        set({ user: savedUser });
       }
 
       if (settings) {
         set({ settings, selectedModel: settings.defaultModel || 'llama3.2:3b' });
       }
 
-      await Promise.all([
-        get().fetchModels(),
-        get().fetchConversations(),
-        get().fetchProjects(),
-        get().fetchMemories()
-      ]);
+      if (get().user) {
+        await Promise.all([
+          get().fetchModels(),
+          get().fetchConversations(),
+          get().fetchProjects(),
+          get().fetchMemories()
+        ]);
+      } else {
+        set({ conversations: [], projects: [], memories: [] });
+        await get().fetchModels();
+      }
     } catch (e) {
       console.error('App init error:', e);
     }
@@ -309,7 +331,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   fetchConversations: async () => {
     try {
-      const { searchQuery, activeProjectId } = get();
+      const { user, searchQuery, activeProjectId } = get();
+      if (!user) {
+        set({ conversations: [] });
+        return;
+      }
       const list = await api.listConversations(searchQuery, activeProjectId || undefined);
       set({ conversations: list });
     } catch (e) {

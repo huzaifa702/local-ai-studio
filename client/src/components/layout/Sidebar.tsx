@@ -338,16 +338,6 @@ export const Sidebar: React.FC = () => {
                 </div>
               </div>
             </div>
-
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setActiveModal('models');
-              }}
-              className="px-2.5 py-1 rounded-full bg-[var(--bg-surface)] hover:bg-[var(--border-subtle)] border border-[var(--border-subtle)] text-[10px] font-semibold text-[var(--text-main)] transition cursor-pointer shrink-0 ml-1"
-            >
-              Upgrade
-            </button>
           </div>
         </div>
       ) : (

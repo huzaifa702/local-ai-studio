@@ -65,6 +65,9 @@ async def list_conversations(
     project_id: Optional[str] = None,
     include_archived: bool = False
 ):
+    if user_id == "guest":
+        return []
+
     db = await get_db()
     try:
         query = "SELECT * FROM conversations WHERE user_id = ?"

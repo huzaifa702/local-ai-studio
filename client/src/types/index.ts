@@ -83,6 +83,18 @@ export interface CloudModel {
   vision: boolean;
 }
 
+export interface DetectedModelItem {
+  id: string;
+  name: string;
+  provider: string;
+  capabilities: {
+    text: boolean;
+    audio: boolean;
+    image: boolean;
+  };
+  category: 'text' | 'audio' | 'image' | 'multimodal';
+}
+
 export interface ModelsResponse {
   isOllamaRunning: boolean;
   installedModels: ModelInfo[];

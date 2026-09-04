@@ -1,6 +1,8 @@
 import json
 import httpx
 import asyncio
+import os
+import psutil
 from typing import AsyncGenerator, Dict, Any, List, Optional
 from ..config import OLLAMA_BASE_URL, RECOMMENDED_MODELS
 
@@ -132,13 +134,21 @@ class OllamaService:
                     m_payload["images"] = msg["images"]
                 formatted_messages.append(m_payload)
 
+            # Physical cores optimization: using 4 threads (physical cores) on Intel i7 prevents
+            # hyperthreading cache thrashing and lock contention in llama.cpp AVX2 kernels
+            optimal_threads = 4
+            try:
+                optimal_threads = psutil.cpu_count(logical=False) or 4
+            except Exception:
+                optimal_threads = max(1, (os.cpu_count() or 8) // 2)
+
             payload = {
                 "model": resolved_model,
                 "messages": formatted_messages,
                 "stream": True,
                 "options": {
                     "temperature": temperature,
-                    "num_thread": 8,
+                    "num_thread": optimal_threads,
                     "num_ctx": 2048,
                     "top_k": 40,
                     "top_p": 0.9

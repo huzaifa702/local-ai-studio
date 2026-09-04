@@ -7,7 +7,8 @@ import type {
   UserSettings, 
   UserProfile, 
   AttachedFile,
-  CitationItem
+  CitationItem,
+  DetectedModelItem
 } from '../types';
 
 const API_BASE = '/api';
@@ -78,28 +79,56 @@ export const api = {
     return data;
   },
 
-  async sendEmailOtp(email: string): Promise<{ success: boolean; message: string; otpCode?: string; otpHint?: string }> {
+  async sendEmailOtp(email: string): Promise<{ success: boolean; message: string }> {
     const res = await fetch(`${API_BASE}/auth/email/send-otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email })
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ detail: 'Failed to send OTP code' }));
-      throw new Error(err.detail || 'Failed to send OTP code');
+      const err = await res.json().catch(() => ({ detail: 'Failed to send verification code' }));
+      throw new Error(err.detail || 'Failed to send verification code');
     }
     return res.json();
   },
 
-  async verifyEmailOtp(email: string, otpCode: string, displayName?: string): Promise<UserProfile> {
+  async verifyEmailOtp(email: string, otpCode: string, password?: string, displayName?: string): Promise<UserProfile> {
     const res = await fetch(`${API_BASE}/auth/email/verify-otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, otpCode, displayName })
+      body: JSON.stringify({ email, otpCode, password, displayName })
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ detail: 'Invalid or expired OTP code' }));
-      throw new Error(err.detail || 'Invalid or expired OTP code');
+      const err = await res.json().catch(() => ({ detail: 'Invalid or expired verification code' }));
+      throw new Error(err.detail || 'Invalid or expired verification code');
+    }
+    const data = await res.json();
+    if (data.token) localStorage.setItem('localai_token', data.token);
+    return data;
+  },
+
+  async sendForgotPasswordOtp(email: string): Promise<{ success: boolean; message: string }> {
+    const res = await fetch(`${API_BASE}/auth/forgot-password/send-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Failed to send reset code' }));
+      throw new Error(err.detail || 'Failed to send reset code');
+    }
+    return res.json();
+  },
+
+  async verifyForgotPassword(email: string, otpCode: string, newPassword: string): Promise<UserProfile> {
+    const res = await fetch(`${API_BASE}/auth/forgot-password/verify-reset`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otpCode, newPassword })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Failed to reset password' }));
+      throw new Error(err.detail || 'Failed to reset password');
     }
     const data = await res.json();
     if (data.token) localStorage.setItem('localai_token', data.token);
@@ -334,14 +363,20 @@ export const api = {
     return res.json();
   },
 
-  async testProviderKey(provider: string, apiKey?: string): Promise<{ success: boolean; message: string; models: string[] }> {
+  async testProviderKey(provider: string, apiKey?: string): Promise<{
+    success: boolean;
+    message: string;
+    models: string[];
+    detectedModels?: DetectedModelItem[];
+    counts?: { text: number; audio: number; image: number };
+  }> {
     const res = await fetch(`${API_BASE}/models/test-key`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({ provider, apiKey })
     });
     if (!res.ok) {
-      return { success: false, message: 'Server communication error', models: [] };
+      return { success: false, message: 'Server communication error', models: [], detectedModels: [] };
     }
     return res.json();
   },

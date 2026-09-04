@@ -26,7 +26,10 @@ import {
   AlertCircle,
   CheckCircle2,
   Zap,
-  Volume1
+  Volume1,
+  MessageSquare,
+  Image,
+  Mic
 } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
 import { api } from '../../services/api';
@@ -44,6 +47,8 @@ export const SettingsModal: React.FC = () => {
     customModels,
     addCustomModel,
     deleteCustomModel,
+    detectedModels,
+    saveDetectedModels,
     fetchModels,
     modelsData
   } = useAppStore();
@@ -230,7 +235,15 @@ export const SettingsModal: React.FC = () => {
 
   // Detection States
   const [testingProvider, setTestingProvider] = useState<string | null>(null);
-  const [testResult, setTestResult] = useState<{ provider: string; success: boolean; message: string; models: string[] } | null>(null);
+  const [testResult, setTestResult] = useState<{ 
+    provider: string; 
+    success: boolean; 
+    message: string; 
+    models: string[];
+    detectedModels?: any[];
+    counts?: { text: number; audio: number; image: number };
+  } | null>(null);
+  const [detectedCategoryFilter, setDetectedCategoryFilter] = useState<'all' | 'text' | 'audio' | 'image'>('all');
 
   const handleTestProvider = async (provider: 'groq' | 'openai' | 'gemini' | 'anthropic' | 'openrouter' | 'ollama') => {
     setTestingProvider(provider);
@@ -249,9 +262,12 @@ export const SettingsModal: React.FC = () => {
         provider,
         success: res.success,
         message: res.message,
-        models: res.models || []
+        models: res.models || [],
+        detectedModels: res.detectedModels || [],
+        counts: res.counts
       });
-      if (res.success) {
+      if (res.success && res.detectedModels && res.detectedModels.length > 0) {
+        saveDetectedModels(res.detectedModels);
         fetchModels();
       }
     } catch (e: any) {
@@ -302,6 +318,23 @@ export const SettingsModal: React.FC = () => {
     });
     setKeysSaved(true);
     setTimeout(() => setKeysSaved(false), 2500);
+
+    // Auto-detect models in background for any newly configured keys
+    const toTest = [
+      { provider: 'groq' as const, key: groqKey.trim() },
+      { provider: 'openai' as const, key: openaiKey.trim() },
+      { provider: 'gemini' as const, key: geminiKey.trim() },
+      { provider: 'anthropic' as const, key: anthropicKey.trim() },
+      { provider: 'openrouter' as const, key: openrouterKey.trim() }
+    ].filter(p => Boolean(p.key));
+
+    for (const p of toTest) {
+      api.testProviderKey(p.provider, p.key).then(res => {
+        if (res.success && res.detectedModels && res.detectedModels.length > 0) {
+          saveDetectedModels(res.detectedModels);
+        }
+      }).catch(() => {});
+    }
   };
 
   const handleExportData = () => {
@@ -585,6 +618,11 @@ export const SettingsModal: React.FC = () => {
                       {customModels.map(cm => (
                         <option key={cm.id} value={cm.id}>⚙️ {cm.name} ({cm.provider})</option>
                       ))}
+                      {detectedModels.map(dm => (
+                        <option key={dm.id} value={dm.id}>
+                          {dm.capabilities.audio ? '🎙️' : (dm.capabilities.image ? '🖼️' : '☁️')} {dm.name} ({dm.provider.toUpperCase()})
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -703,23 +741,131 @@ export const SettingsModal: React.FC = () => {
                   )}
                 </div>
 
-                {/* Connection Test Banner if any */}
+                {/* Connection Test Banner & Capability Breakdown */}
                 {testResult && (
-                  <div className={`p-3 rounded-2xl border transition animate-in fade-in ${
+                  <div className={`p-3.5 rounded-2xl border transition animate-in fade-in ${
                     testResult.success 
-                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
-                      : 'bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300'
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-200'
+                      : 'bg-rose-500/10 border-rose-500/30 text-rose-800 dark:text-rose-200'
                   }`}>
-                    <div className="flex items-start gap-2">
-                      {testResult.success ? <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" /> : <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />}
-                      <div className="flex-1">
+                    <div className="flex items-start gap-2.5">
+                      {testResult.success ? <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-500" /> : <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-500" />}
+                      <div className="flex-1 space-y-2">
                         <div className="font-semibold text-xs">{testResult.message}</div>
+                        {testResult.counts && (
+                          <div className="flex items-center gap-2 pt-1">
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-[10px] font-medium flex items-center gap-1">
+                              <MessageSquare className="w-3 h-3" /> {testResult.counts.text} Text
+                            </span>
+                            <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-700 dark:text-purple-300 text-[10px] font-medium flex items-center gap-1">
+                              <Mic className="w-3 h-3" /> {testResult.counts.audio} Audio/Voice
+                            </span>
+                            <span className="px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-700 dark:text-blue-300 text-[10px] font-medium flex items-center gap-1">
+                              <Image className="w-3 h-3" /> {testResult.counts.image} Vision/Image
+                            </span>
+                          </div>
+                        )}
                         {testResult.models && testResult.models.length > 0 && (
-                          <div className="mt-1.5 text-[10px] max-h-24 overflow-y-auto font-mono bg-black/20 p-2 rounded-xl">
-                            Available models: {testResult.models.slice(0, 15).join(', ')}{testResult.models.length > 15 ? ` ...and ${testResult.models.length - 15} more` : ''}
+                          <div className="mt-1.5 text-[10px] max-h-20 overflow-y-auto font-mono bg-black/25 p-2 rounded-xl text-white/90">
+                            Detected: {testResult.models.slice(0, 20).join(', ')}{testResult.models.length > 20 ? ` ...and ${testResult.models.length - 20} more` : ''}
                           </div>
                         )}
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Auto-Detected Multi-Modal Models Panel */}
+                {detectedModels.length > 0 && (
+                  <div className="p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-subtle)] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-indigo-500" />
+                        <span className="font-semibold text-xs text-[var(--text-main)]">
+                          Auto-Detected Multi-Modal Models ({detectedModels.length})
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {(['all', 'text', 'audio', 'image'] as const).map(cat => (
+                          <button
+                            key={cat}
+                            onClick={() => setDetectedCategoryFilter(cat)}
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-medium capitalize transition cursor-pointer ${
+                              detectedCategoryFilter === cat
+                                ? 'bg-[var(--accent-color)] text-white'
+                                : 'bg-[var(--bg-surface-elevated)] text-[var(--text-muted)] hover:text-[var(--text-main)]'
+                            }`}
+                          >
+                            {cat === 'all' ? 'All' : cat === 'text' ? '💬 Text' : cat === 'audio' ? '🎙️ Audio' : '🖼️ Vision'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin">
+                      {detectedModels
+                        .filter(dm => {
+                          if (detectedCategoryFilter === 'all') return true;
+                          if (detectedCategoryFilter === 'text') return dm.capabilities.text;
+                          if (detectedCategoryFilter === 'audio') return dm.capabilities.audio;
+                          if (detectedCategoryFilter === 'image') return dm.capabilities.image;
+                          return true;
+                        })
+                        .map(dm => {
+                          const isPrimary = defaultModelChoice === dm.id;
+                          return (
+                            <div 
+                              key={dm.id} 
+                              className="flex items-center justify-between p-2 rounded-xl bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] hover:border-[var(--border-medium)] transition"
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="text-xs">
+                                  {dm.capabilities.audio ? '🎙️' : (dm.capabilities.image ? '🖼️' : '💬')}
+                                </span>
+                                <div className="min-w-0">
+                                  <div className="font-mono text-xs font-semibold text-[var(--text-main)] truncate">
+                                    {dm.id}
+                                  </div>
+                                  <div className="text-[10px] text-[var(--text-muted)] truncate flex items-center gap-1.5">
+                                    <span>{dm.name}</span>
+                                    <span className="px-1.5 py-0.1 rounded bg-[var(--accent-bg)] text-[var(--accent-color)] text-[8px] font-bold uppercase">
+                                      {dm.provider}
+                                    </span>
+                                    {dm.capabilities.text && <span className="text-[8px] text-emerald-500 font-medium">Text</span>}
+                                    {dm.capabilities.audio && <span className="text-[8px] text-purple-500 font-medium">Audio</span>}
+                                    {dm.capabilities.image && <span className="text-[8px] text-blue-500 font-medium">Vision</span>}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {isPrimary ? (
+                                  <span className="px-2 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-medium flex items-center gap-1">
+                                    <Check className="w-3 h-3" /> Active Default
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      setDefaultModelChoice(dm.id);
+                                      updateSettings({ defaultModel: dm.id });
+                                    }}
+                                    className="px-2 py-0.5 rounded-lg bg-[var(--bg-card)] hover:bg-[var(--bg-sidebar-hover)] border border-[var(--border-input)] text-[10px] text-[var(--text-main)] font-medium transition cursor-pointer"
+                                  >
+                                    Set Default
+                                  </button>
+                                )}
+                                {dm.capabilities.image && (
+                                  <button
+                                    onClick={() => updateSettings({ visionModel: dm.id })}
+                                    className="px-2 py-0.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-[10px] text-blue-600 dark:text-blue-400 font-medium transition cursor-pointer"
+                                    title="Set as active vision engine"
+                                  >
+                                    Set Vision
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                     </div>
                   </div>
                 )}
