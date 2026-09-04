@@ -89,10 +89,15 @@ export interface DetectedModelItem {
   provider: string;
   capabilities: {
     text: boolean;
-    audio: boolean;
+    coding?: boolean;
     image: boolean;
+    video?: boolean;
+    vision?: boolean;
+    audio: boolean;
+    thinking?: boolean;
   };
-  category: 'text' | 'audio' | 'image' | 'multimodal';
+  category: 'text' | 'coding' | 'audio' | 'image' | 'video' | 'vision' | 'reasoning' | 'multimodal';
+  thinkingEffort?: 'OFF' | 'LOW' | 'MEDIUM' | 'HIGH' | 'MAX';
 }
 
 export interface ModelsResponse {

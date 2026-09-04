@@ -46,14 +46,34 @@ export const ImagesModal: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [tab, setTab] = useState<'generate' | 'vision'>('generate');
 
-  // Load saved gallery from localStorage
+  // Load saved gallery from localStorage and backend cache
   useEffect(() => {
+    let localSaved: GeneratedImage[] = [];
     try {
       const saved = localStorage.getItem('guts_ai_image_gallery');
       if (saved) {
-        setRecentGallery(JSON.parse(saved));
+        localSaved = JSON.parse(saved);
+        setRecentGallery(localSaved);
       }
     } catch (e) {}
+
+    // Fetch server cached gallery items
+    api.getImageGallery().then((serverItems) => {
+      if (serverItems && serverItems.length > 0) {
+        const serverMapped: GeneratedImage[] = serverItems.map((item) => ({
+          id: item.id,
+          prompt: 'Generated Artwork',
+          style: 'Flux',
+          url: item.url,
+          createdAt: item.createdAt
+        }));
+        setRecentGallery((prev) => {
+          const existingUrls = new Set(prev.map((p) => p.url));
+          const additions = serverMapped.filter((s) => !existingUrls.has(s.url));
+          return [...prev, ...additions].slice(0, 20);
+        });
+      }
+    }).catch(() => {});
   }, []);
 
   const styles = [
@@ -90,40 +110,46 @@ export const ImagesModal: React.FC = () => {
     setIsGenerating(true);
 
     try {
-      const activeStyleObj = styles.find(s => s.id === selectedStyle);
-      const combinedPrompt = `${prompt.trim()}, ${activeStyleObj?.modifier || ''}`;
-      const { width, height } = aspectDimensions[aspectRatio];
-      const seed = Math.floor(Math.random() * 1000000);
-      
-      const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(combinedPrompt)}?width=${width}&height=${height}&seed=${seed}&nologo=true&model=flux`;
-
-      // Pre-load image to make sure it loads smoothly
-      const img = new Image();
-      img.src = imageUrl;
-      await new Promise((resolve) => {
-        img.onload = resolve;
-        img.onerror = resolve; // fallback gracefully
-      });
-
-      const newImg: GeneratedImage = {
-        id: `img_${Date.now()}`,
+      const result = await api.generateImage({
         prompt: prompt.trim(),
         style: selectedStyle,
-        url: imageUrl,
-        createdAt: new Date().toISOString()
+        aspectRatio: aspectRatio,
+      });
+
+      const imageUrl = result.url || result.directUrl;
+
+      // Pre-load image in browser memory for instant smooth display
+      if (imageUrl) {
+        const img = new Image();
+        img.src = imageUrl;
+        await new Promise((resolve) => {
+          img.onload = resolve;
+          img.onerror = resolve; // fallback gracefully
+        });
+      }
+
+      const newImg: GeneratedImage = {
+        id: result.id || `img_${Date.now()}`,
+        prompt: prompt.trim(),
+        style: selectedStyle,
+        url: imageUrl || '',
+        createdAt: result.createdAt || new Date().toISOString()
       };
 
       setCurrentImage(newImg);
-      const updatedGallery = [newImg, ...recentGallery.slice(0, 15)];
-      setRecentGallery(updatedGallery);
-      localStorage.setItem('guts_ai_image_gallery', JSON.stringify(updatedGallery));
-    } catch (e) {
+      setRecentGallery((prev) => {
+        const updated = [newImg, ...prev.filter((p) => p.id !== newImg.id).slice(0, 19)];
+        localStorage.setItem('guts_ai_image_gallery', JSON.stringify(updated));
+        return updated;
+      });
+    } catch (e: any) {
       console.error('Image generation error:', e);
-      alert('Could not generate image. Please check internet connection.');
+      alert(e?.message || 'Could not generate image. Please check your internet connection.');
     } finally {
       setIsGenerating(false);
     }
   };
+
 
   const handleSendToChat = async (img: GeneratedImage) => {
     setActiveModal(null);

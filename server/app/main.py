@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from .config import UPLOAD_DIR
 from .db.database import init_db
-from .routers import auth, chat, models, files, projects, memory, settings
+from .routers import auth, chat, models, files, projects, memory, settings, images
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -36,6 +36,7 @@ app.include_router(files.router)
 app.include_router(projects.router)
 app.include_router(memory.router)
 app.include_router(settings.router)
+app.include_router(images.router)
 
 # Mount uploads directory for static file preview
 app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")

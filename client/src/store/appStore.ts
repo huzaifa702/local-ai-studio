@@ -41,6 +41,7 @@ interface AppState {
   deleteCustomModel: (modelId: string) => void;
   detectedModels: DetectedModelItem[];
   saveDetectedModels: (models: DetectedModelItem[]) => void;
+  updateDetectedModelEffort: (modelId: string, effort: 'OFF' | 'LOW' | 'MEDIUM' | 'HIGH' | 'MAX') => void;
 
   // Conversations
   conversations: Conversation[];
@@ -232,6 +233,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     try { localStorage.setItem('local_detected_models', JSON.stringify(merged)); } catch {}
     return { detectedModels: merged };
   }),
+  updateDetectedModelEffort: (modelId, effort) => set((state) => {
+    const updated = state.detectedModels.map(m => m.id === modelId ? { ...m, thinkingEffort: effort } : m);
+    try { localStorage.setItem('local_detected_models', JSON.stringify(updated)); } catch {}
+    return { detectedModels: updated };
+  }),
   conversations: [],
   activeConversationId: null,
   activeConversation: null,
@@ -246,7 +252,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setActiveModal: (modal) => set({ activeModal: modal }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
-  setSelectedModel: (selectedModel, provider = 'ollama') => set({ selectedModel, selectedProvider: provider }),
+  setSelectedModel: (selectedModel, provider = 'ollama') => {
+    const state = get();
+    const detected = state.detectedModels.find(m => m.id.toLowerCase() === selectedModel.toLowerCase());
+    const isReasoning = selectedModel.includes('r1') || selectedModel.includes('o1') || selectedModel.includes('o3') || Boolean(detected?.capabilities?.thinking);
+    set({ 
+      selectedModel, 
+      selectedProvider: provider,
+      thinkEnabled: isReasoning ? true : state.thinkEnabled
+    });
+  },
   setActiveProjectId: (activeProjectId) => {
     set({ activeProjectId });
     get().fetchConversations();

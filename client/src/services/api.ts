@@ -365,10 +365,19 @@ export const api = {
 
   async testProviderKey(provider: string, apiKey?: string): Promise<{
     success: boolean;
+    provider?: string;
     message: string;
     models: string[];
     detectedModels?: DetectedModelItem[];
-    counts?: { text: number; audio: number; image: number };
+    counts?: { 
+      text: number; 
+      coding?: number; 
+      image: number; 
+      video?: number; 
+      vision?: number; 
+      audio: number; 
+      thinking?: number; 
+    };
   }> {
     const res = await fetch(`${API_BASE}/models/test-key`, {
       method: 'POST',
@@ -541,5 +550,41 @@ export const api = {
     });
     if (!res.ok) throw new Error('Failed to update settings');
     return res.json();
+  },
+
+  // --- Images Studio ---
+  async generateImage(data: { prompt: string; style?: string; aspectRatio?: string; provider?: string; apiKey?: string }): Promise<{
+    success: boolean;
+    id: string;
+    prompt: string;
+    style: string;
+    url: string;
+    directUrl?: string;
+    provider: string;
+    createdAt: string;
+  }> {
+    const res = await fetch(`${API_BASE}/images/generate`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Failed to generate image' }));
+      throw new Error(err.detail || 'Failed to generate image');
+    }
+    return res.json();
+  },
+
+  async getImageGallery(): Promise<Array<{ id: string; filename: string; url: string; createdAt: string }>> {
+    try {
+      const res = await fetch(`${API_BASE}/images/gallery`, {
+        headers: getAuthHeaders()
+      });
+      if (!res.ok) return [];
+      return await res.json();
+    } catch {
+      return [];
+    }
   }
 };
+

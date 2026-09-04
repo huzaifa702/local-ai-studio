@@ -29,7 +29,12 @@ import {
   Volume1,
   MessageSquare,
   Image,
-  Mic
+  Mic,
+  Video,
+  Code,
+  Brain,
+  Eye,
+  Layers
 } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
 import { api } from '../../services/api';
@@ -49,6 +54,8 @@ export const SettingsModal: React.FC = () => {
     deleteCustomModel,
     detectedModels,
     saveDetectedModels,
+    updateDetectedModelEffort,
+    setSelectedModel,
     fetchModels,
     modelsData
   } = useAppStore();
@@ -223,13 +230,27 @@ export const SettingsModal: React.FC = () => {
   const [geminiKey, setGeminiKey] = useState(settings.apiKeys?.gemini || '');
   const [anthropicKey, setAnthropicKey] = useState(settings.apiKeys?.anthropic || '');
   const [openrouterKey, setOpenrouterKey] = useState(settings.apiKeys?.openrouter || '');
+  const [huggingfaceKey, setHuggingfaceKey] = useState((settings.apiKeys as any)?.huggingface || '');
+  const [universalKey, setUniversalKey] = useState('');
   const [defaultModelChoice, setDefaultModelChoice] = useState(settings.defaultModel || 'llama3.2:3b');
   const [keysSaved, setKeysSaved] = useState(false);
+
+  // Helper to infer provider from key pattern
+  const inferProviderFromKey = (key: string): string => {
+    const k = key.trim();
+    if (k.startsWith('gsk_')) return 'groq';
+    if (k.startsWith('sk-ant-')) return 'anthropic';
+    if (k.startsWith('sk-or-')) return 'openrouter';
+    if (k.startsWith('AIzaSy')) return 'gemini';
+    if (k.startsWith('hf_')) return 'huggingface';
+    if (k.startsWith('sk-proj-') || (k.startsWith('sk-') && k.length > 30)) return 'openai';
+    return 'Cloud Provider';
+  };
 
   // Custom Model Form States
   const [customModelId, setCustomModelId] = useState('');
   const [customModelName, setCustomModelName] = useState('');
-  const [customProvider, setCustomProvider] = useState<'ollama' | 'groq' | 'openai' | 'gemini' | 'anthropic' | 'openrouter'>('ollama');
+  const [customProvider, setCustomProvider] = useState<'ollama' | 'groq' | 'openai' | 'gemini' | 'anthropic' | 'openrouter' | 'huggingface'>('ollama');
   const [customThinkingEffort, setCustomThinkingEffort] = useState<'OFF' | 'LOW' | 'MEDIUM' | 'HIGH' | 'MAX'>('OFF');
   const [customAddedMessage, setCustomAddedMessage] = useState<string | null>(null);
 
@@ -241,34 +262,70 @@ export const SettingsModal: React.FC = () => {
     message: string; 
     models: string[];
     detectedModels?: any[];
-    counts?: { text: number; audio: number; image: number };
+    counts?: { 
+      text: number; 
+      coding?: number; 
+      image: number; 
+      video?: number; 
+      vision?: number; 
+      audio: number; 
+      thinking?: number; 
+    };
   } | null>(null);
-  const [detectedCategoryFilter, setDetectedCategoryFilter] = useState<'all' | 'text' | 'audio' | 'image'>('all');
+  const [detectedCategoryFilter, setDetectedCategoryFilter] = useState<'all' | 'video' | 'image' | 'coding' | 'reasoning' | 'vision' | 'text' | 'audio'>('all');
 
-  const handleTestProvider = async (provider: 'groq' | 'openai' | 'gemini' | 'anthropic' | 'openrouter' | 'ollama') => {
+  const handleTestProvider = async (
+    provider: 'groq' | 'openai' | 'gemini' | 'anthropic' | 'openrouter' | 'huggingface' | 'ollama' | 'auto',
+    explicitKey?: string
+  ) => {
     setTestingProvider(provider);
     setTestResult(null);
 
-    let key = '';
-    if (provider === 'groq') key = groqKey;
-    else if (provider === 'openai') key = openaiKey;
-    else if (provider === 'gemini') key = geminiKey;
-    else if (provider === 'anthropic') key = anthropicKey;
-    else if (provider === 'openrouter') key = openrouterKey;
+    let key = explicitKey !== undefined ? explicitKey : '';
+    if (explicitKey === undefined) {
+      if (provider === 'groq') key = groqKey;
+      else if (provider === 'openai') key = openaiKey;
+      else if (provider === 'gemini') key = geminiKey;
+      else if (provider === 'anthropic') key = anthropicKey;
+      else if (provider === 'openrouter') key = openrouterKey;
+      else if (provider === 'huggingface') key = huggingfaceKey;
+      else if (provider === 'auto') key = universalKey;
+    }
 
     try {
       const res = await api.testProviderKey(provider, key);
+      const effectiveProvider = res.provider || (provider === 'auto' ? inferProviderFromKey(key) : provider);
+      
       setTestResult({
-        provider,
+        provider: effectiveProvider,
         success: res.success,
         message: res.message,
         models: res.models || [],
         detectedModels: res.detectedModels || [],
         counts: res.counts
       });
-      if (res.success && res.detectedModels && res.detectedModels.length > 0) {
-        saveDetectedModels(res.detectedModels);
-        fetchModels();
+
+      if (res.success) {
+        if (res.detectedModels && res.detectedModels.length > 0) {
+          saveDetectedModels(res.detectedModels);
+          fetchModels();
+        }
+        // Auto-save key into active settings state
+        if (key && effectiveProvider && effectiveProvider !== 'ollama') {
+          if (effectiveProvider === 'groq') setGroqKey(key);
+          else if (effectiveProvider === 'openai') setOpenaiKey(key);
+          else if (effectiveProvider === 'gemini') setGeminiKey(key);
+          else if (effectiveProvider === 'anthropic') setAnthropicKey(key);
+          else if (effectiveProvider === 'openrouter') setOpenrouterKey(key);
+          else if (effectiveProvider === 'huggingface') setHuggingfaceKey(key);
+          
+          updateSettings({
+            apiKeys: {
+              ...(settings.apiKeys || {}),
+              [effectiveProvider]: key
+            } as any
+          });
+        }
       }
     } catch (e: any) {
       setTestResult({
@@ -310,7 +367,8 @@ export const SettingsModal: React.FC = () => {
       openai: openaiKey.trim(),
       gemini: geminiKey.trim(),
       anthropic: anthropicKey.trim(),
-      openrouter: openrouterKey.trim()
+      openrouter: openrouterKey.trim(),
+      huggingface: huggingfaceKey.trim()
     };
     await updateSettings({ 
       apiKeys: updatedKeys,
@@ -325,7 +383,8 @@ export const SettingsModal: React.FC = () => {
       { provider: 'openai' as const, key: openaiKey.trim() },
       { provider: 'gemini' as const, key: geminiKey.trim() },
       { provider: 'anthropic' as const, key: anthropicKey.trim() },
-      { provider: 'openrouter' as const, key: openrouterKey.trim() }
+      { provider: 'openrouter' as const, key: openrouterKey.trim() },
+      { provider: 'huggingface' as const, key: huggingfaceKey.trim() }
     ].filter(p => Boolean(p.key));
 
     for (const p of toTest) {
@@ -596,6 +655,62 @@ export const SettingsModal: React.FC = () => {
                   </button>
                 </div>
 
+                {/* 🌟 Universal API Key Auto-Detector Hero Card */}
+                <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-950/40 via-purple-950/20 to-[var(--bg-card)] border border-indigo-500/30 space-y-3.5 shadow-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 rounded-xl bg-indigo-500/20 border border-indigo-500/30 text-indigo-400">
+                        <Zap className="w-4 h-4 text-indigo-400" />
+                      </div>
+                      <div>
+                        <div className="font-bold text-xs text-[var(--text-main)] flex items-center gap-2">
+                          <span>Universal API Key Auto-Detector</span>
+                          <span className="px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-400 text-[9px] font-bold uppercase tracking-wider">
+                            Multi-Modal & Thinking
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                          Paste any key (Groq, OpenAI, Gemini, Anthropic, OpenRouter, HuggingFace) to auto-detect provider, video/image/code models, and thinking mode.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        type="password"
+                        placeholder="Paste any API key here (e.g. gsk_..., sk-ant-..., sk-..., AIzaSy..., hf_...)"
+                        value={universalKey}
+                        onChange={(e) => setUniversalKey(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && universalKey.trim()) {
+                            handleTestProvider('auto', universalKey);
+                          }
+                        }}
+                        className="w-full pl-3 pr-28 py-2 rounded-xl bg-[var(--bg-input)] border border-[var(--border-input)] text-xs text-[var(--text-main)] font-mono placeholder-[var(--text-muted)] focus:border-indigo-500 focus:outline-none transition"
+                      />
+                      {universalKey.trim() && (
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                          <span className="px-2 py-0.5 rounded-md bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-[10px] font-semibold uppercase">
+                            {inferProviderFromKey(universalKey)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleTestProvider('auto', universalKey)}
+                      disabled={!universalKey.trim() || testingProvider !== null}
+                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 text-white font-semibold text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-md shrink-0"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${testingProvider ? 'animate-spin' : ''}`} />
+                      <span>{testingProvider ? 'Scanning...' : 'Scan & Auto-Detect'}</span>
+                    </button>
+                  </div>
+                </div>
+
                 {/* Default Model Selector */}
                 <div className="p-3.5 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-subtle)] space-y-2">
                   <div className="flex items-center justify-between">
@@ -743,7 +858,7 @@ export const SettingsModal: React.FC = () => {
 
                 {/* Connection Test Banner & Capability Breakdown */}
                 {testResult && (
-                  <div className={`p-3.5 rounded-2xl border transition animate-in fade-in ${
+                  <div className={`p-4 rounded-2xl border transition animate-in fade-in ${
                     testResult.success 
                       ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-200'
                       : 'bg-rose-500/10 border-rose-500/30 text-rose-800 dark:text-rose-200'
@@ -751,18 +866,52 @@ export const SettingsModal: React.FC = () => {
                     <div className="flex items-start gap-2.5">
                       {testResult.success ? <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-500" /> : <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-500" />}
                       <div className="flex-1 space-y-2">
-                        <div className="font-semibold text-xs">{testResult.message}</div>
+                        <div className="flex items-center justify-between">
+                          <div className="font-semibold text-xs">{testResult.message}</div>
+                          {testResult.provider && (
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold uppercase text-[9px]">
+                              {testResult.provider}
+                            </span>
+                          )}
+                        </div>
+
                         {testResult.counts && (
-                          <div className="flex items-center gap-2 pt-1">
-                            <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-[10px] font-medium flex items-center gap-1">
-                              <MessageSquare className="w-3 h-3" /> {testResult.counts.text} Text
-                            </span>
-                            <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-700 dark:text-purple-300 text-[10px] font-medium flex items-center gap-1">
-                              <Mic className="w-3 h-3" /> {testResult.counts.audio} Audio/Voice
-                            </span>
-                            <span className="px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-700 dark:text-blue-300 text-[10px] font-medium flex items-center gap-1">
-                              <Image className="w-3 h-3" /> {testResult.counts.image} Vision/Image
-                            </span>
+                          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                            {Boolean(testResult.counts.video) && (
+                              <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-700 dark:text-purple-300 text-[10px] font-medium flex items-center gap-1">
+                                <Video className="w-3 h-3" /> {testResult.counts.video} Video Models
+                              </span>
+                            )}
+                            {Boolean(testResult.counts.image) && (
+                              <span className="px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-700 dark:text-blue-300 text-[10px] font-medium flex items-center gap-1">
+                                <Image className="w-3 h-3" /> {testResult.counts.image} Image Generation
+                              </span>
+                            )}
+                            {Boolean(testResult.counts.coding) && (
+                              <span className="px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 text-[10px] font-medium flex items-center gap-1">
+                                <Code className="w-3 h-3" /> {testResult.counts.coding} Coding Models
+                              </span>
+                            )}
+                            {Boolean(testResult.counts.thinking) && (
+                              <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 text-[10px] font-medium flex items-center gap-1">
+                                <Brain className="w-3 h-3" /> {testResult.counts.thinking} Reasoning / CoT
+                              </span>
+                            )}
+                            {Boolean(testResult.counts.vision) && (
+                              <span className="px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 text-[10px] font-medium flex items-center gap-1">
+                                <Eye className="w-3 h-3" /> {testResult.counts.vision} Vision / Multimodal
+                              </span>
+                            )}
+                            {Boolean(testResult.counts.text) && (
+                              <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-[10px] font-medium flex items-center gap-1">
+                                <MessageSquare className="w-3 h-3" /> {testResult.counts.text} Text / Chat
+                              </span>
+                            )}
+                            {Boolean(testResult.counts.audio) && (
+                              <span className="px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-700 dark:text-rose-300 text-[10px] font-medium flex items-center gap-1">
+                                <Mic className="w-3 h-3" /> {testResult.counts.audio} Audio / Speech
+                              </span>
+                            )}
                           </div>
                         )}
                         {testResult.models && testResult.models.length > 0 && (
@@ -778,69 +927,158 @@ export const SettingsModal: React.FC = () => {
                 {/* Auto-Detected Multi-Modal Models Panel */}
                 {detectedModels.length > 0 && (
                   <div className="p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-subtle)] space-y-3">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
                       <div className="flex items-center gap-2">
                         <Sparkles className="w-4 h-4 text-indigo-500" />
                         <span className="font-semibold text-xs text-[var(--text-main)]">
                           Auto-Detected Multi-Modal Models ({detectedModels.length})
                         </span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        {(['all', 'text', 'audio', 'image'] as const).map(cat => (
-                          <button
-                            key={cat}
-                            onClick={() => setDetectedCategoryFilter(cat)}
-                            className={`px-2 py-0.5 rounded-lg text-[10px] font-medium capitalize transition cursor-pointer ${
-                              detectedCategoryFilter === cat
-                                ? 'bg-[var(--accent-color)] text-white'
-                                : 'bg-[var(--bg-surface-elevated)] text-[var(--text-muted)] hover:text-[var(--text-main)]'
-                            }`}
-                          >
-                            {cat === 'all' ? 'All' : cat === 'text' ? '💬 Text' : cat === 'audio' ? '🎙️ Audio' : '🖼️ Vision'}
-                          </button>
-                        ))}
+                      <div className="flex flex-wrap items-center gap-1">
+                        {(['all', 'video', 'image', 'coding', 'reasoning', 'vision', 'text', 'audio'] as const).map(cat => {
+                          const count = cat === 'all' 
+                            ? detectedModels.length
+                            : cat === 'video' ? detectedModels.filter(m => m.capabilities?.video).length
+                            : cat === 'image' ? detectedModels.filter(m => m.capabilities?.image).length
+                            : cat === 'coding' ? detectedModels.filter(m => m.capabilities?.coding).length
+                            : cat === 'reasoning' ? detectedModels.filter(m => m.capabilities?.thinking).length
+                            : cat === 'vision' ? detectedModels.filter(m => m.capabilities?.vision).length
+                            : cat === 'text' ? detectedModels.filter(m => m.capabilities?.text).length
+                            : detectedModels.filter(m => m.capabilities?.audio).length;
+
+                          if (count === 0 && cat !== 'all') return null;
+
+                          return (
+                            <button
+                              key={cat}
+                              onClick={() => setDetectedCategoryFilter(cat)}
+                              className={`px-2 py-0.5 rounded-lg text-[10px] font-medium capitalize transition cursor-pointer ${
+                                detectedCategoryFilter === cat
+                                  ? 'bg-[var(--accent-color)] text-white'
+                                  : 'bg-[var(--bg-surface-elevated)] text-[var(--text-muted)] hover:text-[var(--text-main)]'
+                              }`}
+                            >
+                              {cat === 'all' ? `All (${count})`
+                                : cat === 'video' ? `🎬 Video (${count})`
+                                : cat === 'image' ? `🖼️ Image (${count})`
+                                : cat === 'coding' ? `💻 Code (${count})`
+                                : cat === 'reasoning' ? `🧠 Reasoning (${count})`
+                                : cat === 'vision' ? `👁️ Vision (${count})`
+                                : cat === 'text' ? `💬 Text (${count})`
+                                : `🎙️ Audio (${count})`
+                              }
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
 
-                    <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin">
+                    <div className="max-h-60 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
                       {detectedModels
                         .filter(dm => {
                           if (detectedCategoryFilter === 'all') return true;
-                          if (detectedCategoryFilter === 'text') return dm.capabilities.text;
-                          if (detectedCategoryFilter === 'audio') return dm.capabilities.audio;
-                          if (detectedCategoryFilter === 'image') return dm.capabilities.image;
+                          if (detectedCategoryFilter === 'video') return dm.capabilities?.video;
+                          if (detectedCategoryFilter === 'image') return dm.capabilities?.image;
+                          if (detectedCategoryFilter === 'coding') return dm.capabilities?.coding;
+                          if (detectedCategoryFilter === 'reasoning') return dm.capabilities?.thinking;
+                          if (detectedCategoryFilter === 'vision') return dm.capabilities?.vision;
+                          if (detectedCategoryFilter === 'text') return dm.capabilities?.text;
+                          if (detectedCategoryFilter === 'audio') return dm.capabilities?.audio;
                           return true;
                         })
                         .map(dm => {
                           const isPrimary = defaultModelChoice === dm.id;
+                          const modelIcon = dm.capabilities?.video 
+                            ? '🎬' 
+                            : dm.capabilities?.image 
+                              ? '🖼️' 
+                              : dm.capabilities?.coding 
+                                ? '💻' 
+                                : dm.capabilities?.thinking 
+                                  ? '🧠' 
+                                  : dm.capabilities?.vision 
+                                    ? '👁️' 
+                                    : dm.capabilities?.audio 
+                                      ? '🎙️' 
+                                      : '💬';
+
                           return (
                             <div 
                               key={dm.id} 
-                              className="flex items-center justify-between p-2 rounded-xl bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] hover:border-[var(--border-medium)] transition"
+                              className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-xl bg-[var(--bg-surface-elevated)] border border-[var(--border-subtle)] hover:border-[var(--border-medium)] transition"
                             >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="text-xs">
-                                  {dm.capabilities.audio ? '🎙️' : (dm.capabilities.image ? '🖼️' : '💬')}
-                                </span>
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <span className="text-base shrink-0">{modelIcon}</span>
                                 <div className="min-w-0">
                                   <div className="font-mono text-xs font-semibold text-[var(--text-main)] truncate">
                                     {dm.id}
                                   </div>
-                                  <div className="text-[10px] text-[var(--text-muted)] truncate flex items-center gap-1.5">
+                                  <div className="text-[10px] text-[var(--text-muted)] truncate flex flex-wrap items-center gap-1.5 mt-0.5">
                                     <span>{dm.name}</span>
-                                    <span className="px-1.5 py-0.1 rounded bg-[var(--accent-bg)] text-[var(--accent-color)] text-[8px] font-bold uppercase">
+                                    <span className="px-1.5 py-0.2 rounded bg-[var(--accent-bg)] text-[var(--accent-color)] text-[8px] font-bold uppercase">
                                       {dm.provider}
                                     </span>
-                                    {dm.capabilities.text && <span className="text-[8px] text-emerald-500 font-medium">Text</span>}
-                                    {dm.capabilities.audio && <span className="text-[8px] text-purple-500 font-medium">Audio</span>}
-                                    {dm.capabilities.image && <span className="text-[8px] text-blue-500 font-medium">Vision</span>}
+                                    {dm.capabilities?.video && (
+                                      <span className="px-1.5 py-0.2 rounded bg-purple-500/15 text-purple-600 dark:text-purple-400 text-[8px] font-bold">
+                                        Video
+                                      </span>
+                                    )}
+                                    {dm.capabilities?.image && (
+                                      <span className="px-1.5 py-0.2 rounded bg-blue-500/15 text-blue-600 dark:text-blue-400 text-[8px] font-bold">
+                                        Image
+                                      </span>
+                                    )}
+                                    {dm.capabilities?.coding && (
+                                      <span className="px-1.5 py-0.2 rounded bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 text-[8px] font-bold">
+                                        Coding
+                                      </span>
+                                    )}
+                                    {dm.capabilities?.thinking && (
+                                      <span className="px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[8px] font-bold">
+                                        Reasoning
+                                      </span>
+                                    )}
+                                    {dm.capabilities?.vision && (
+                                      <span className="px-1.5 py-0.2 rounded bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 text-[8px] font-bold">
+                                        Vision
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-1.5 shrink-0">
+
+                              <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                                {/* Thinking Effort Selector directly on Detected Model Card */}
+                                <div className="flex items-center gap-1 bg-[var(--bg-input)] px-2 py-0.5 rounded-lg border border-[var(--border-input)]">
+                                  <Brain className="w-3 h-3 text-amber-500" />
+                                  <span className="text-[9px] text-[var(--text-muted)] font-medium">Thinking:</span>
+                                  <select
+                                    value={dm.thinkingEffort || (dm.capabilities?.thinking ? 'MEDIUM' : 'OFF')}
+                                    onChange={(e) => updateDetectedModelEffort(dm.id, e.target.value as any)}
+                                    className="bg-transparent text-[9px] font-bold text-[var(--text-main)] focus:outline-none cursor-pointer"
+                                  >
+                                    <option value="OFF" className="bg-[var(--bg-card)]">OFF</option>
+                                    <option value="LOW" className="bg-[var(--bg-card)]">LOW</option>
+                                    <option value="MEDIUM" className="bg-[var(--bg-card)]">MEDIUM</option>
+                                    <option value="HIGH" className="bg-[var(--bg-card)]">HIGH</option>
+                                    <option value="MAX" className="bg-[var(--bg-card)]">MAX</option>
+                                  </select>
+                                </div>
+
+                                <button
+                                  onClick={() => {
+                                    setSelectedModel(dm.id, dm.provider as any);
+                                    setActiveModal(null);
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-semibold transition cursor-pointer shadow-xs"
+                                  title="Activate this model on chat dashboard immediately"
+                                >
+                                  Activate
+                                </button>
+
                                 {isPrimary ? (
-                                  <span className="px-2 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-medium flex items-center gap-1">
-                                    <Check className="w-3 h-3" /> Active Default
+                                  <span className="px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-medium flex items-center gap-1">
+                                    <Check className="w-3 h-3" /> Default
                                   </span>
                                 ) : (
                                   <button
@@ -848,15 +1086,16 @@ export const SettingsModal: React.FC = () => {
                                       setDefaultModelChoice(dm.id);
                                       updateSettings({ defaultModel: dm.id });
                                     }}
-                                    className="px-2 py-0.5 rounded-lg bg-[var(--bg-card)] hover:bg-[var(--bg-sidebar-hover)] border border-[var(--border-input)] text-[10px] text-[var(--text-main)] font-medium transition cursor-pointer"
+                                    className="px-2 py-1 rounded-lg bg-[var(--bg-card)] hover:bg-[var(--bg-sidebar-hover)] border border-[var(--border-input)] text-[10px] text-[var(--text-main)] font-medium transition cursor-pointer"
                                   >
                                     Set Default
                                   </button>
                                 )}
-                                {dm.capabilities.image && (
+
+                                {(dm.capabilities?.image || dm.capabilities?.vision) && (
                                   <button
                                     onClick={() => updateSettings({ visionModel: dm.id })}
-                                    className="px-2 py-0.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-[10px] text-blue-600 dark:text-blue-400 font-medium transition cursor-pointer"
+                                    className="px-2 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-[10px] text-blue-600 dark:text-blue-400 font-medium transition cursor-pointer"
                                     title="Set as active vision engine"
                                   >
                                     Set Vision
@@ -1093,6 +1332,46 @@ export const SettingsModal: React.FC = () => {
                       placeholder="sk-or-..."
                       value={openrouterKey}
                       onChange={(e) => setOpenrouterKey(e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-xl bg-[var(--bg-input)] border border-[var(--border-input)] text-xs text-[var(--text-main)] font-mono placeholder-[var(--text-muted)] focus:border-[var(--accent-color)] focus:outline-none"
+                    />
+                  </div>
+
+                  {/* 6. Hugging Face */}
+                  <div className="p-3.5 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-subtle)] space-y-2 hover:border-[var(--border-medium)] transition">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-xs text-yellow-500">Hugging Face</span>
+                        <span className="px-1.5 py-0.2 rounded-full bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 text-[9px] font-bold">
+                          FLUX.1 • CogVideoX • SDXL
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleTestProvider('huggingface')}
+                          disabled={testingProvider === 'huggingface'}
+                          className="px-2 py-1 rounded-lg bg-[var(--bg-surface-elevated)] hover:bg-[var(--bg-sidebar-hover)] border border-[var(--border-input)] text-[10px] text-[var(--text-main)] font-medium transition cursor-pointer flex items-center gap-1"
+                        >
+                          <Zap className={`w-3 h-3 ${testingProvider === 'huggingface' ? 'animate-spin' : ''}`} />
+                          <span>Test & Detect</span>
+                        </button>
+                        <a
+                          href="https://huggingface.co/settings/tokens"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[10px] text-indigo-500 hover:underline"
+                        >
+                          Get Free Key &rarr;
+                        </a>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-[var(--text-muted)]">
+                      Access to thousands of open-source models including FLUX.1-schnell image generator and CogVideoX.
+                    </p>
+                    <input
+                      type="password"
+                      placeholder="hf_..."
+                      value={huggingfaceKey}
+                      onChange={(e) => setHuggingfaceKey(e.target.value)}
                       className="w-full px-3 py-1.5 rounded-xl bg-[var(--bg-input)] border border-[var(--border-input)] text-xs text-[var(--text-main)] font-mono placeholder-[var(--text-muted)] focus:border-[var(--accent-color)] focus:outline-none"
                     />
                   </div>

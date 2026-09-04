@@ -275,15 +275,28 @@ export const MessageInput: React.FC = () => {
     .filter(dm => !modelsList.some(m => m.id.toLowerCase() === dm.id.toLowerCase()) && !customModels.some(cm => cm.id.toLowerCase() === dm.id.toLowerCase()))
     .map(dm => {
       const caps = [];
-      if (dm.capabilities.text) caps.push('Text');
-      if (dm.capabilities.audio) caps.push('Voice');
-      if (dm.capabilities.image) caps.push('Vision');
+      if (dm.capabilities?.video) caps.push('Video');
+      if (dm.capabilities?.image) caps.push('Image');
+      if (dm.capabilities?.coding) caps.push('Code');
+      if (dm.capabilities?.thinking) caps.push('Reasoning');
+      if (dm.capabilities?.vision) caps.push('Vision');
+      if (dm.capabilities?.text) caps.push('Text');
+      if (dm.capabilities?.audio) caps.push('Audio');
+
+      let badge = '☁️ Cloud';
+      if (dm.capabilities?.video) badge = '🎬 Video';
+      else if (dm.capabilities?.image) badge = '🖼️ Image';
+      else if (dm.capabilities?.coding) badge = '💻 Code';
+      else if (dm.capabilities?.thinking) badge = '🧠 Thinking';
+      else if (dm.capabilities?.vision) badge = '👁️ Vision';
+      else if (dm.capabilities?.audio) badge = '🎙️ Audio';
+
       return {
         id: dm.id,
         name: dm.name,
         provider: dm.provider as any,
         subtitle: `${dm.provider.toUpperCase()} • ${caps.join(' + ') || 'Detected'}`,
-        badge: dm.capabilities.audio ? '🎙️ Audio' : (dm.capabilities.image ? '🖼️ Vision' : '☁️ Cloud'),
+        badge,
         isDefault: false
       };
     });
@@ -428,7 +441,22 @@ export const MessageInput: React.FC = () => {
                       <span>Take a screenshot</span>
                     </button>
 
-                    {/* 3. Add to project */}
+                    {/* 3. Create AI Image Studio */}
+                    <button
+                      onClick={() => {
+                        setPlusMenuOpen(false);
+                        setActiveModal('images');
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-[var(--bg-sidebar-hover)] text-[var(--text-main)] transition flex items-center justify-between cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Sparkles className="w-4 h-4 text-purple-400" />
+                        <span>Create AI image</span>
+                      </div>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 font-semibold">Flux</span>
+                    </button>
+
+                    {/* 4. Add to project */}
                     <button
                       onClick={() => {
                         setPlusMenuOpen(false);
@@ -543,8 +571,12 @@ export const MessageInput: React.FC = () => {
                             key={m.id}
                             onClick={() => {
                               setSelectedModel(m.id, m.provider);
-                              if (m.id === 'deepseek-r1:7b') {
+                              const detected = detectedModels.find(dm => dm.id.toLowerCase() === m.id.toLowerCase());
+                              if (m.id.includes('r1') || m.id.includes('o1') || m.id.includes('o3') || detected?.capabilities?.thinking) {
                                 if (!thinkEnabled) toggleThink();
+                                if (detected?.thinkingEffort && detected.thinkingEffort !== 'OFF') {
+                                  setThinkingEffort(detected.thinkingEffort.toLowerCase() as any);
+                                }
                               }
                             }}
                             className={`w-full text-left px-3 py-2 rounded-xl transition flex items-center justify-between cursor-pointer ${

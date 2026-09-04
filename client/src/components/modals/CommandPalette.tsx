@@ -51,6 +51,15 @@ export const CommandPalette: React.FC = () => {
       }
     },
     {
+      id: 'images-hub',
+      title: 'Open AI Images & Vision Studio',
+      category: 'Creation',
+      icon: Sparkles,
+      run: () => {
+        setActiveModal('images');
+      }
+    },
+    {
       id: 'model-hub',
       title: 'Open Model Hub & Hardware Estimator',
       category: 'Models',

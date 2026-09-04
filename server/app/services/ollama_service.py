@@ -128,10 +128,12 @@ class OllamaService:
             if system_prompt:
                 formatted_messages.append({"role": "system", "content": system_prompt})
             
-            for msg in messages:
+            for i, msg in enumerate(messages):
                 m_payload = {"role": msg["role"], "content": msg["content"]}
                 if "images" in msg and msg["images"]:
                     m_payload["images"] = msg["images"]
+                elif i == len(messages) - 1 and images:
+                    m_payload["images"] = images
                 formatted_messages.append(m_payload)
 
             # Physical cores optimization: using 4 threads (physical cores) on Intel i7 prevents

@@ -340,15 +340,46 @@ async def send_message(req: SendMessageRequest, user_id: str = Depends(get_curre
             except Exception as e:
                 print(f"Web search execution error: {e}")
 
-        # 3. Build document attachments context
+        # 3. Build document attachments context & resolve vision images
         doc_context = ""
+        resolved_images = []
+        if req.images:
+            for img_item in req.images:
+                if img_item.startswith("data:image"):
+                    parts = img_item.split(",", 1)
+                    resolved_images.append(parts[1] if len(parts) > 1 else img_item)
+                else:
+                    resolved_images.append(img_item)
+
         if req.attachments:
+            import base64
+            from pathlib import Path
             doc_context += "\n\n[Attached Local Documents/Files]:\n"
             for att in req.attachments:
                 fname = att.get("filename", "file")
                 ftext = att.get("extractedText", "")
                 if ftext:
                     doc_context += f"--- Begin File: {fname} ---\n{ftext}\n--- End File: {fname} ---\n"
+                if att.get("isImage"):
+                    fid = att.get("id")
+                    url = att.get("url") or ""
+                    if fid:
+                        try:
+                            fcursor = await db.execute("SELECT file_path FROM uploaded_files WHERE id = ?", (fid,))
+                            frow = await fcursor.fetchone()
+                            if frow and Path(frow["file_path"]).exists():
+                                b64 = base64.b64encode(Path(frow["file_path"]).read_bytes()).decode('utf-8')
+                                resolved_images.append(b64)
+                                continue
+                        except Exception as e:
+                            print(f"Error reading image attachment: {e}")
+                    if "/api/images/view/" in url:
+                        gname = url.split("/api/images/view/")[-1]
+                        gpath = Path(__file__).resolve().parent.parent.parent / "data" / "generated_images" / gname
+                        if gpath.exists():
+                            b64 = base64.b64encode(gpath.read_bytes()).decode('utf-8')
+                            resolved_images.append(b64)
+                            continue
 
         full_user_content = req.content + doc_context
 
@@ -404,7 +435,7 @@ async def send_message(req: SendMessageRequest, user_id: str = Depends(get_curre
                 model=req.model,
                 messages=messages_payload,
                 system_prompt=full_system_prompt,
-                images=req.images,
+                images=resolved_images if resolved_images else req.images,
                 temperature=req.temperature or 0.7,
                 cloud_api_key=req.cloudApiKey,
                 provider=req.provider or "ollama",
