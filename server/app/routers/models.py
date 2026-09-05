@@ -17,12 +17,17 @@ class TestKeyRequest(BaseModel):
     apiKey: Optional[str] = None
 
 CLOUD_MODELS = [
-    {"id": "gpt-4o", "name": "GPT-4o (OpenAI)", "provider": "openai", "context": 128000, "vision": True},
-    {"id": "gpt-4o-mini", "name": "GPT-4o Mini (OpenAI)", "provider": "openai", "context": 128000, "vision": True},
-    {"id": "llama-3.3-70b-versatile", "name": "Llama 3.3 70B (Groq Fast)", "provider": "groq", "context": 128000, "vision": False},
-    {"id": "claude-3-5-sonnet-20241022", "name": "Claude 3.5 Sonnet (Anthropic)", "provider": "anthropic", "context": 200000, "vision": True},
-    {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash (Google)", "provider": "gemini", "context": 1000000, "vision": True},
-    {"id": "deepseek/deepseek-r1", "name": "DeepSeek R1 (OpenRouter)", "provider": "openrouter", "context": 64000, "vision": False}
+    {"id": "qwen-2.5-coder-32b", "name": "Qwen 2.5 Coder 32B (Groq Fast Free)", "provider": "groq", "context": 131072, "vision": False, "category": "coding"},
+    {"id": "deepseek-r1-distill-llama-70b", "name": "DeepSeek R1 Distill 70B (Groq / OpenRouter)", "provider": "groq", "context": 131072, "vision": False, "category": "reasoning"},
+    {"id": "llama-3.3-70b-versatile", "name": "Llama 3.3 70B Versatile (Groq Fast)", "provider": "groq", "context": 128000, "vision": False, "category": "text"},
+    {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash (Google AI Studio 1M Video)", "provider": "gemini", "context": 1048576, "vision": True, "category": "video"},
+    {"id": "black-forest-labs/FLUX.1-schnell", "name": "FLUX.1 [schnell] 12B (Hugging Face Free)", "provider": "huggingface", "context": 4096, "vision": False, "category": "image"},
+    {"id": "stabilityai/stable-diffusion-xl-base-1.0", "name": "SDXL Base 1.0 (Hugging Face / Turbo)", "provider": "huggingface", "context": 4096, "vision": False, "category": "image"},
+    {"id": "recraft-v3", "name": "Recraft v3 / Pollinations (Built-in Free)", "provider": "pollinations", "context": 4096, "vision": False, "category": "image"},
+    {"id": "THUDM/CogVideoX-5B", "name": "CogVideoX-5B (Hugging Face Video Gen)", "provider": "huggingface", "context": 4096, "vision": False, "category": "video"},
+    {"id": "tencent/HunyuanVideo", "name": "Tencent HunyuanVideo 13B (Hugging Face)", "provider": "huggingface", "context": 4096, "vision": False, "category": "video"},
+    {"id": "gpt-4o", "name": "GPT-4o (OpenAI)", "provider": "openai", "context": 128000, "vision": True, "category": "vision"},
+    {"id": "claude-3-5-sonnet-20241022", "name": "Claude 3.5 Sonnet (Anthropic)", "provider": "anthropic", "context": 200000, "vision": True, "category": "vision"}
 ]
 
 @router.get("")
@@ -53,7 +58,7 @@ def classify_model(model_id: str, provider: str) -> Dict[str, Any]:
     # 1. Video detection (generation & video-LLMs)
     is_video = any(k in mid for k in [
         "video", "cogvideo", "hunyuan", "animatediff", "luma", "runway", "svd", 
-        "kling", "sora", "pika", "video-llava", "minimax", "gen-2", "gen-3"
+        "kling", "sora", "pika", "video-llava", "minimax", "gen-2", "gen-3", "gemini-2.0-flash"
     ])
     
     # 2. Image generation detection

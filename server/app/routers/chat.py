@@ -416,6 +416,19 @@ async def send_message(req: SendMessageRequest, user_id: str = Depends(get_curre
             
         full_system_prompt = base_system + memory_ctx + search_context
 
+        # Resolve cloud API key from user settings in DB if not provided in request
+        effective_key = req.cloudApiKey
+        effective_provider = req.provider or "ollama"
+        if not effective_key and effective_provider != "ollama":
+            try:
+                scursor = await db.execute("SELECT api_keys_json FROM user_settings WHERE user_id = ?", (user_id,))
+                srow = await scursor.fetchone()
+                if srow and srow["api_keys_json"]:
+                    kmap = json.loads(srow["api_keys_json"])
+                    effective_key = kmap.get(effective_provider) or kmap.get(effective_provider.lower())
+            except Exception as e:
+                print(f"Error fetching saved cloud API key: {e}")
+
         # 7. Stream generator
         assistant_msg_id = str(uuid.uuid4())
         
@@ -437,8 +450,8 @@ async def send_message(req: SendMessageRequest, user_id: str = Depends(get_curre
                 system_prompt=full_system_prompt,
                 images=resolved_images if resolved_images else req.images,
                 temperature=req.temperature or 0.7,
-                cloud_api_key=req.cloudApiKey,
-                provider=req.provider or "ollama",
+                cloud_api_key=effective_key,
+                provider=effective_provider,
                 think_enabled=req.thinkEnabled
             ):
                 if "error" in token:

@@ -35,7 +35,7 @@ interface AppState {
   // Models
   modelsData: ModelsResponse | null;
   selectedModel: string;
-  selectedProvider: 'ollama' | 'openai' | 'groq' | 'anthropic' | 'gemini' | 'openrouter';
+  selectedProvider: 'ollama' | 'openai' | 'groq' | 'anthropic' | 'gemini' | 'openrouter' | 'huggingface' | 'pollinations';
   customModels: Array<{ id: string; name: string; provider: string; subtitle?: string; badge?: string; thinkingEffort?: string }>;
   addCustomModel: (model: { id: string; name: string; provider: string; subtitle?: string; badge?: string; thinkingEffort?: string }) => void;
   deleteCustomModel: (modelId: string) => void;
@@ -119,6 +119,84 @@ const getInitialUser = (): UserProfile | null => {
   }
   return null;
 };
+
+const DEFAULT_CURATED_MODELS: DetectedModelItem[] = [
+  // 💻 Text & Coding (Top 3 Free)
+  {
+    id: "qwen-2.5-coder-32b",
+    name: "Qwen 2.5 Coder 32B (Groq Fast Free)",
+    provider: "groq",
+    capabilities: { text: true, coding: true, image: false, video: false, vision: false, audio: false, thinking: false },
+    category: "coding",
+    thinkingEffort: "OFF"
+  },
+  {
+    id: "deepseek-r1-distill-llama-70b",
+    name: "DeepSeek R1 Distill 70B (Groq / OpenRouter)",
+    provider: "groq",
+    capabilities: { text: true, coding: true, image: false, video: false, vision: false, audio: false, thinking: true },
+    category: "reasoning",
+    thinkingEffort: "MEDIUM"
+  },
+  {
+    id: "llama-3.3-70b-versatile",
+    name: "Llama 3.3 70B Versatile (Groq Fast)",
+    provider: "groq",
+    capabilities: { text: true, coding: true, image: false, video: false, vision: false, audio: false, thinking: false },
+    category: "text",
+    thinkingEffort: "OFF"
+  },
+  // 🖼️ Pictures / Images (Top 3 Free)
+  {
+    id: "black-forest-labs/FLUX.1-schnell",
+    name: "FLUX.1 [schnell] 12B (Hugging Face)",
+    provider: "huggingface",
+    capabilities: { text: false, coding: false, image: true, video: false, vision: false, audio: false, thinking: false },
+    category: "image",
+    thinkingEffort: "OFF"
+  },
+  {
+    id: "stabilityai/stable-diffusion-xl-base-1.0",
+    name: "SDXL Base 1.0 (Hugging Face / SDXL Turbo)",
+    provider: "huggingface",
+    capabilities: { text: false, coding: false, image: true, video: false, vision: false, audio: false, thinking: false },
+    category: "image",
+    thinkingEffort: "OFF"
+  },
+  {
+    id: "recraft-v3",
+    name: "Recraft v3 / Pollinations (Built-in Free Engine)",
+    provider: "pollinations",
+    capabilities: { text: false, coding: false, image: true, video: false, vision: false, audio: false, thinking: false },
+    category: "image",
+    thinkingEffort: "OFF"
+  },
+  // 🎬 Videos (Top 3 Free)
+  {
+    id: "THUDM/CogVideoX-5B",
+    name: "CogVideoX-5B (Hugging Face Video Gen)",
+    provider: "huggingface",
+    capabilities: { text: false, coding: false, image: false, video: true, vision: false, audio: false, thinking: false },
+    category: "video",
+    thinkingEffort: "OFF"
+  },
+  {
+    id: "gemini-2.0-flash",
+    name: "Gemini 2.0 Flash (Google AI Studio 1M Video Understanding)",
+    provider: "gemini",
+    capabilities: { text: true, coding: true, image: false, video: true, vision: true, audio: true, thinking: false },
+    category: "video",
+    thinkingEffort: "OFF"
+  },
+  {
+    id: "tencent/HunyuanVideo",
+    name: "Tencent HunyuanVideo 13B (Hugging Face / Cinematic)",
+    provider: "huggingface",
+    capabilities: { text: false, coding: false, image: false, video: true, vision: false, audio: false, thinking: false },
+    category: "video",
+    thinkingEffort: "OFF"
+  }
+];
 
 export const useAppStore = create<AppState>((set, get) => ({
   user: getInitialUser(),
@@ -221,9 +299,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   detectedModels: (() => {
     try {
       const saved = localStorage.getItem('local_detected_models');
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return DEFAULT_CURATED_MODELS;
     } catch {
-      return [];
+      return DEFAULT_CURATED_MODELS;
     }
   })(),
   saveDetectedModels: (models) => set((state) => {

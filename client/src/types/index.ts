@@ -142,6 +142,7 @@ export interface ApiKeys {
   anthropic: string;
   openrouter: string;
   gemini: string;
+  huggingface?: string;
   tavily?: string;
 }
 

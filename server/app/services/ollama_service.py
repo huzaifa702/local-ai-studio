@@ -246,12 +246,13 @@ class OllamaService:
                 yield {"error": f"Anthropic API error: {str(e)}"}
                 return
 
-        # Support OpenAI / Groq / OpenRouter / Gemini API compatible endpoints
+        # Support OpenAI / Groq / OpenRouter / Gemini / HuggingFace API compatible endpoints
         base_urls = {
             "openai": "https://api.openai.com/v1",
             "groq": "https://api.groq.com/openai/v1",
             "openrouter": "https://openrouter.ai/api/v1",
-            "gemini": "https://generativelanguage.googleapis.com/v1beta/openai"
+            "gemini": "https://generativelanguage.googleapis.com/v1beta/openai",
+            "huggingface": "https://router.huggingface.co/v1"
         }
         url = base_urls.get(provider, "https://api.openai.com/v1")
         
